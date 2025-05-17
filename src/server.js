@@ -116,7 +116,10 @@ io.on('connection', (socket) => {
     socket.join(streamId);
 
     // Notify the viewer that they've joined
-    socket.emit('joined-stream', streamId);
+    socket.emit('joined-stream', {
+      streamId,
+      hostSocketId: connection.hostSocketId
+    });
 
     // Notify the host
     io.to(connection.hostSocketId).emit('viewer-joined', {

@@ -324,6 +324,17 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
       connectionIdInput.value = connectionId;
 
       // Set the local stream
+      console.log('Setting local stream to WebRTC connection');
+
+      // Log stream details
+      const videoTracks = stream.getVideoTracks();
+      const audioTracks = stream.getAudioTracks();
+      console.log(`Stream details - Video tracks: ${videoTracks.length}, Audio tracks: ${audioTracks.length}`);
+
+      if (videoTracks.length > 0) {
+        console.log('Video track settings:', videoTracks[0].getSettings());
+      }
+
       webrtcConnection.setLocalStream(stream);
 
       // Set up event listeners

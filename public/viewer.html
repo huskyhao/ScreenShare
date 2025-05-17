@@ -477,9 +477,21 @@
 
         // Wait for confirmation or error
         const joinResult = await new Promise((resolve, reject) => {
-          socket.once('joined-stream', (streamId) => {
-            console.log('Successfully joined stream with ID:', streamId);
-            resolve({ success: true, streamId });
+          socket.once('joined-stream', (data) => {
+            console.log('Successfully joined stream:', data);
+
+            // Check if we received the expected data
+            if (!data || !data.streamId) {
+              console.error('Invalid join response:', data);
+              reject(new Error('Invalid join response from server'));
+              return;
+            }
+
+            resolve({
+              success: true,
+              streamId: data.streamId,
+              hostSocketId: data.hostSocketId
+            });
           });
 
           socket.once('error', (error) => {
@@ -536,6 +548,12 @@
         peerConnection.onicecandidate = (event) => {
           if (event.candidate) {
             // Send the ICE candidate to the host via the signaling server
+            if (!joinResult.hostSocketId) {
+              console.error('Missing hostSocketId, cannot send ICE candidate');
+              return;
+            }
+
+            console.log('Sending ICE candidate to host:', joinResult.hostSocketId);
             socket.emit('signal', {
               to: joinResult.hostSocketId,
               signal: event.candidate
@@ -624,6 +642,40 @@
 
         // Wait for the host to send an offer
         console.log('Waiting for host to initiate connection...');
+
+        // Send a ping to the host to ensure they know we're here
+        // This is a backup in case the viewer-joined event wasn't processed by the host
+        if (joinResult.hostSocketId) {
+          console.log('Sending ping to host to initiate connection');
+          socket.emit('signal', {
+            to: joinResult.hostSocketId,
+            signal: { type: 'viewer-ready', viewerId: socket.id }
+          });
+
+          // Set a timeout to create an offer ourselves if the host doesn't respond
+          setTimeout(() => {
+            if (peerConnection && peerConnection.connectionState !== 'connected') {
+              console.log('Host did not send offer, creating one ourselves');
+
+              // Create and send an offer
+              peerConnection.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true
+              })
+              .then(offer => peerConnection.setLocalDescription(offer))
+              .then(() => {
+                socket.emit('signal', {
+                  to: joinResult.hostSocketId,
+                  signal: peerConnection.localDescription
+                });
+                console.log('Sent offer to host');
+              })
+              .catch(err => {
+                console.error('Error creating offer:', err);
+              });
+            }
+          }, 3000); // Wait 3 seconds for host to initiate
+        }
       } catch (error) {
         console.error('Connection error:', error);
         updateConnectionStatus('Connection failed: ' + error.message, 'poor');

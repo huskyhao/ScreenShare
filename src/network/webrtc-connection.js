@@ -240,6 +240,16 @@ class WebRTCConnection {
           await this._handleAnswer(from, signal);
         } else if (signal.candidate) {
           await this._handleIceCandidate(from, signal);
+        } else if (signal.type === 'viewer-ready') {
+          // This is a backup signal from the viewer in case the viewer-joined event was missed
+          console.log('Received viewer-ready signal from:', from);
+          if (this.isHost) {
+            // Initiate connection to the viewer if we haven't already
+            if (!this.peerConnections.has(from)) {
+              console.log('Initiating connection to viewer from viewer-ready signal');
+              this.connectToPeer(from);
+            }
+          }
         }
       } catch (error) {
         console.error('Error handling signal:', error);
@@ -769,14 +779,35 @@ class WebRTCConnection {
    * @private
    */
   _addStreamToPeer(peerConnection, peerId) {
-    if (!this.localStream) return;
+    if (!this.localStream) {
+      console.warn('No local stream available to add to peer:', peerId);
+      return;
+    }
 
     console.log('Adding local stream to peer:', peerId);
 
+    // Log stream details
+    const videoTracks = this.localStream.getVideoTracks();
+    const audioTracks = this.localStream.getAudioTracks();
+    console.log(`Stream details - Video tracks: ${videoTracks.length}, Audio tracks: ${audioTracks.length}`);
+
+    if (videoTracks.length > 0) {
+      console.log('Video track settings:', videoTracks[0].getSettings());
+    }
+
     // Add each track from the local stream to the peer connection
+    let trackCount = 0;
     this.localStream.getTracks().forEach(track => {
-      peerConnection.addTrack(track, this.localStream);
+      try {
+        peerConnection.addTrack(track, this.localStream);
+        console.log(`Added ${track.kind} track to peer ${peerId}`);
+        trackCount++;
+      } catch (error) {
+        console.error(`Failed to add ${track.kind} track to peer ${peerId}:`, error);
+      }
     });
+
+    console.log(`Added ${trackCount} tracks to peer ${peerId}`);
   }
 
   /**
