@@ -1,80 +1,66 @@
 /**
- * Logger Module
- * 
- * This module provides a centralized logging system for the application
- * using Winston for advanced logging capabilities.
+ * Simple Logger Module
+ *
+ * This module provides a basic logging system for the application
+ * using console.log with timestamps.
  */
 
-const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
 
 // Create logs directory if it doesn't exist
 const logsDir = path.join(process.cwd(), 'logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir);
+try {
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir);
+  }
+} catch (error) {
+  console.error('Failed to create logs directory:', error);
 }
 
-// Define log format
-const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.splat(),
-  winston.format.json()
-);
-
-// Define console format (more readable for development)
-const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
-  winston.format.timestamp({ format: 'HH:mm:ss' }),
-  winston.format.printf(
-    info => `${info.timestamp} ${info.level}: ${info.message}${info.stack ? '\n' + info.stack : ''}`
-  )
-);
-
-// Create the logger
-const logger = winston.createLogger({
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  format: logFormat,
-  defaultMeta: { service: 'screenshare' },
-  transports: [
-    // Write logs to files
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'error.log'), 
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-  ],
-});
-
-// Add console transport in development
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: consoleFormat,
-  }));
-}
-
-// Create a stream object for Morgan (HTTP request logger)
-logger.stream = {
-  write: (message) => {
-    logger.info(message.trim());
-  },
+// Helper function to get timestamp
+const getTimestamp = () => {
+  const now = new Date();
+  return now.toISOString();
 };
 
-// Add helper methods for component-specific logging
-logger.getComponentLogger = (component) => {
-  return {
-    debug: (message, meta = {}) => logger.debug(message, { component, ...meta }),
-    info: (message, meta = {}) => logger.info(message, { component, ...meta }),
-    warn: (message, meta = {}) => logger.warn(message, { component, ...meta }),
-    error: (message, meta = {}) => logger.error(message, { component, ...meta }),
-  };
+// Simple logger implementation
+const logger = {
+  debug: (message, meta = {}) => {
+    console.log(`[${getTimestamp()}] DEBUG: ${message}`, meta);
+  },
+
+  info: (message, meta = {}) => {
+    console.log(`[${getTimestamp()}] INFO: ${message}`, meta);
+  },
+
+  warn: (message, meta = {}) => {
+    console.warn(`[${getTimestamp()}] WARN: ${message}`, meta);
+  },
+
+  error: (message, meta = {}) => {
+    console.error(`[${getTimestamp()}] ERROR: ${message}`, meta);
+    if (meta.stack) {
+      console.error(meta.stack);
+    }
+  },
+
+  // Create a stream object for HTTP request logging
+  stream: {
+    write: (message) => {
+      console.log(`[${getTimestamp()}] HTTP: ${message.trim()}`);
+    }
+  },
+
+  // Add helper methods for component-specific logging
+  getComponentLogger: (component) => {
+    return {
+      debug: (message, meta = {}) => logger.debug(`[${component}] ${message}`, meta),
+      info: (message, meta = {}) => logger.info(`[${component}] ${message}`, meta),
+      warn: (message, meta = {}) => logger.warn(`[${component}] ${message}`, meta),
+      error: (message, meta = {}) => logger.error(`[${component}] ${message}`, meta),
+    };
+  }
 };
 
 // Export the logger
