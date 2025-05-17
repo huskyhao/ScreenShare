@@ -23,7 +23,15 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.6.2 (Current)
+### v0.6.3 (Current)
+- Fixed WebRTC connection implementation for proper screen and audio sharing
+- Implemented ICE candidate exchange between peers
+- Fixed track event handling to properly display remote video
+- Improved connection statistics with real-time data
+- Enhanced reconnection logic for better reliability
+- Removed simulation code from viewer page
+
+### v0.6.2
 - Fixed stream ID mismatch error by modifying the server to use client-provided IDs
 - Improved stream creation process in the signaling server
 
