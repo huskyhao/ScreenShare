@@ -465,8 +465,28 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
               });
 
               // Set up audio processing nodes
-              // Create source from the audio stream
-              audioSource = audioContext.createMediaStreamSource(audioStream);
+              console.log('Setting up audio processing nodes for mixing system audio and microphone');
+
+              // Create separate audio sources for system audio and microphone
+              let systemAudioSource = null;
+              let microphoneSource = null;
+
+              // Get system audio from the desktop capture stream
+              if (systemAudioCheckbox.checked && localStream.getAudioTracks().length > 0) {
+                // Create a new stream with just the system audio track
+                const systemAudioStream = new MediaStream([localStream.getAudioTracks()[0]]);
+                systemAudioSource = audioContext.createMediaStreamSource(systemAudioStream);
+                console.log('Created system audio source from desktop capture');
+              }
+
+              // Get microphone audio from the microphone stream
+              if (microphoneCheckbox.checked && audioStream.getAudioTracks().length > 0) {
+                microphoneSource = audioContext.createMediaStreamSource(audioStream);
+                console.log('Created microphone audio source');
+              }
+
+              // Store the audio source for visualization
+              audioSource = microphoneSource || systemAudioSource;
 
               // Create gain nodes for volume control
               systemGainNode = audioContext.createGain();
@@ -476,20 +496,33 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
               systemGainNode.gain.value = systemAudioVolumeSlider.value / 100;
               microphoneGainNode.gain.value = microphoneVolumeSlider.value / 100;
 
+              console.log(`Initial gain values - System: ${systemGainNode.gain.value}, Microphone: ${microphoneGainNode.gain.value}`);
+
               // Create destination node to output the processed audio
               audioDestination = audioContext.createMediaStreamDestination();
 
-              // Connect the nodes: source -> gain -> destination
-              audioSource.connect(systemGainNode);
-              systemGainNode.connect(audioDestination);
-
-              // Apply initial mute state if needed
-              if (audioMuted.system) {
-                systemGainNode.gain.value = 0;
+              // Connect the nodes: sources -> gain nodes -> destination
+              if (systemAudioSource) {
+                systemAudioSource.connect(systemGainNode);
+                systemGainNode.connect(audioDestination);
+                console.log('Connected system audio to processing chain');
               }
 
-              if (audioMuted.microphone) {
+              if (microphoneSource) {
+                microphoneSource.connect(microphoneGainNode);
+                microphoneGainNode.connect(audioDestination);
+                console.log('Connected microphone audio to processing chain');
+              }
+
+              // Apply initial mute state if needed
+              if (audioMuted.system && systemAudioSource) {
+                systemGainNode.gain.value = 0;
+                console.log('Applied initial mute state to system audio');
+              }
+
+              if (audioMuted.microphone && microphoneSource) {
                 microphoneGainNode.gain.value = 0;
+                console.log('Applied initial mute state to microphone');
               }
 
               // Add the processed audio tracks to the combined stream
@@ -707,23 +740,36 @@ function toggleAudioMute(source) {
 
 // Start audio visualization
 function startAudioVisualization(stream) {
-  if (!stream || !audioVisualizer) return;
+  if (!audioVisualizer) return;
 
   // Create audio context if needed
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
 
-  // Create audio source from stream
-  const source = audioContext.createMediaStreamSource(stream);
-
   // Create analyser
   audioAnalyser = audioContext.createAnalyser();
   audioAnalyser.fftSize = 256;
   audioVisualizationData = new Uint8Array(audioAnalyser.frequencyBinCount);
 
-  // Connect source to analyser
-  source.connect(audioAnalyser);
+  // If we have a destination node from audio processing, use that for visualization
+  // This will show the mixed audio levels
+  if (audioDestination) {
+    console.log('Using mixed audio destination for visualization');
+    // Create a separate connection for the analyser to avoid affecting the audio output
+    const visualizationSource = audioContext.createMediaStreamSource(audioDestination.stream);
+    visualizationSource.connect(audioAnalyser);
+  }
+  // Otherwise, use the provided stream
+  else if (stream) {
+    console.log('Using provided stream for visualization');
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(audioAnalyser);
+  }
+  else {
+    console.log('No audio source available for visualization');
+    return;
+  }
 
   // Start visualization
   if (visualizationInterval) {

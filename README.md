@@ -23,7 +23,14 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.6.7 (Current)
+### v0.6.8 (Current)
+- Fixed audio balance control between system sound and microphone input
+- Implemented proper audio mixing with independent volume controls for each source
+- Enhanced audio visualization to show mixed audio levels
+- Improved system audio capture and processing
+- Added detailed logging for audio mixing and processing
+
+### v0.6.7
 - Implemented audio control functionality allowing independent adjustment of system sound and microphone volume
 - Added audio processing nodes (GainNode) for real-time volume control
 - Fixed mute functionality to work correctly
