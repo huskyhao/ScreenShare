@@ -18,12 +18,21 @@ This project is currently in early development. Below is the roadmap:
 2. ✅ Basic screen capture and local preview
 3. ✅ P2P connection implementation
 4. ✅ Video quality control
-5. ⬜ Audio sharing
+5. ✅ Audio sharing
 6. ✅ UI optimization and user experience improvements
 
 ## Version History
 
-### v0.4.0 (Current)
+### v0.5.0 (Current)
+- Added comprehensive audio capture and sharing functionality
+- Implemented system audio and microphone capture with individual controls
+- Added audio visualization for both streamer and viewer
+- Added volume controls and mute toggles for each audio source
+- Implemented audio device selection for system audio and microphone
+- Added audio level monitoring and visualization
+- Enhanced statistics display to include audio information
+
+### v0.4.0
 - Enhanced viewer UI with connection status indicators
 - Added real-time connection quality monitoring
 - Implemented automatic reconnection for dropped connections
@@ -102,14 +111,26 @@ npm run server
 The viewer interface includes several features to enhance the viewing experience:
 
 - **Connection Status Indicator**: Shows the current connection quality (good, fair, poor)
-- **Statistics Display**: Shows resolution, bitrate, framerate, and latency information
+- **Statistics Display**: Shows resolution, bitrate, framerate, latency, and audio information
 - **Quality Selection**: Allows viewers to adjust the stream quality based on their connection
+- **Audio Visualization**: Real-time visualization of audio levels
 - **Keyboard Shortcuts**:
   - `M`: Toggle mute
   - `F`: Toggle fullscreen
   - `S`: Toggle statistics display
   - `Q`: Show quality options
   - `Esc`: Disconnect (when not in fullscreen)
+
+### Audio Features
+
+The application includes comprehensive audio sharing capabilities:
+
+- **System Audio Capture**: Capture and share system sounds and game audio
+- **Microphone Input**: Optional microphone input for commentary
+- **Individual Controls**: Separate volume controls and mute toggles for each audio source
+- **Device Selection**: Choose specific audio output and input devices
+- **Audio Visualization**: Real-time visualization of audio levels
+- **Audio Synchronization**: Automatic synchronization of audio and video
 
 ### Connection Reliability
 

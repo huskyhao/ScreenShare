@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ScreenShare Viewer</title>
+  <script src="../js/audio-visualizer.js"></script>
   <style>
     :root {
       --primary-color: #4a6bff;
@@ -210,6 +211,17 @@
       max-width: 300px;
     }
 
+    .audio-visualizer-container {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      width: 200px;
+      height: 40px;
+      background-color: rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
     .stats-row {
       display: flex;
       justify-content: space-between;
@@ -286,7 +298,13 @@
             <span class="stats-label">Latency:</span>
             <span id="stats-latency">-</span>
           </div>
+          <div class="stats-row">
+            <span class="stats-label">Audio:</span>
+            <span id="stats-audio">-</span>
+          </div>
         </div>
+
+        <div class="audio-visualizer-container" id="audio-visualizer-container"></div>
 
         <div class="controls">
           <button id="mute-button" class="control-button">🔊 Mute</button>
@@ -299,7 +317,7 @@
     </main>
 
     <footer>
-      <p>ScreenShare Viewer v0.1.0 | Powered by WebRTC</p>
+      <p>ScreenShare Viewer v0.5.0 | Powered by WebRTC</p>
     </footer>
   </div>
 
@@ -324,6 +342,8 @@
     const statsBitrate = document.getElementById('stats-bitrate');
     const statsFramerate = document.getElementById('stats-framerate');
     const statsLatency = document.getElementById('stats-latency');
+    const statsAudio = document.getElementById('stats-audio');
+    const audioVisualizerContainer = document.getElementById('audio-visualizer-container');
 
     // State variables
     let peerConnection = null;
@@ -334,6 +354,11 @@
     let statsInterval = null;
     let reconnectAttempts = 0;
     let maxReconnectAttempts = 5;
+    let audioVisualizer = null;
+    let audioContext = null;
+    let audioAnalyser = null;
+    let audioVisualizationData = null;
+    let visualizationInterval = null;
 
     // Event Listeners
     document.addEventListener('DOMContentLoaded', initializeApp);
@@ -350,6 +375,21 @@
     // Initialize the application
     function initializeApp() {
       console.log('Initializing ScreenShare Viewer');
+
+      // Initialize audio visualizer
+      try {
+        audioVisualizer = new AudioVisualizer(audioVisualizerContainer, {
+          type: 'wave',
+          color: '#4a6bff',
+          backgroundColor: 'rgba(0, 0, 0, 0.2)',
+          smoothing: 0.7
+        });
+
+        // Set initial level to 0
+        audioVisualizer.updateLevel(0);
+      } catch (error) {
+        console.error('Failed to initialize audio visualizer:', error);
+      }
     }
 
     // Connect to a stream using the provided connection ID
@@ -427,6 +467,9 @@
 
             // Set the stream as the source for the video element
             remoteVideo.srcObject = stream;
+
+            // Set up audio visualization
+            setupAudioVisualization(stream);
 
             // Update connection status
             updateConnectionStatus('Connected', 'good');
@@ -580,6 +623,70 @@
       }
     }
 
+    // Set up audio visualization
+    function setupAudioVisualization(stream) {
+      if (!stream || !audioVisualizer) return;
+
+      try {
+        // Create audio context if needed
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // Get audio tracks
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length === 0) {
+          console.log('No audio tracks found in stream');
+          statsAudio.textContent = 'No audio';
+          return;
+        }
+
+        // Create audio source from stream
+        const source = audioContext.createMediaStreamSource(stream);
+
+        // Create analyser
+        audioAnalyser = audioContext.createAnalyser();
+        audioAnalyser.fftSize = 256;
+        audioVisualizationData = new Uint8Array(audioAnalyser.frequencyBinCount);
+
+        // Connect source to analyser
+        source.connect(audioAnalyser);
+
+        // Start visualization
+        if (visualizationInterval) {
+          clearInterval(visualizationInterval);
+        }
+
+        visualizationInterval = setInterval(() => {
+          if (audioAnalyser && audioVisualizer) {
+            audioAnalyser.getByteFrequencyData(audioVisualizationData);
+
+            // Calculate average level
+            let sum = 0;
+            for (let i = 0; i < audioVisualizationData.length; i++) {
+              sum += audioVisualizationData[i];
+            }
+            const average = sum / audioVisualizationData.length;
+
+            // Normalize to 0-1
+            const level = average / 255;
+
+            // Update visualizer
+            audioVisualizer.updateLevel(level);
+
+            // Update audio stats
+            if (isStatsVisible) {
+              statsAudio.textContent = isMuted ? 'Muted' : 'Active';
+            }
+          }
+        }, 50); // Update 20 times per second
+
+        console.log('Audio visualization set up successfully');
+      } catch (error) {
+        console.error('Failed to set up audio visualization:', error);
+      }
+    }
+
     // Update connection stats
     function updateStats() {
       if (!isConnected || !isStatsVisible) return;
@@ -603,6 +710,9 @@
       // Simulate latency (random fluctuation between 50-150ms)
       const latency = Math.floor(50 + Math.random() * 100);
       statsLatency.textContent = `${latency} ms`;
+
+      // Update audio stats
+      statsAudio.textContent = isMuted ? 'Muted' : 'Active';
 
       // Update connection quality based on simulated values
       let quality = 'good';
@@ -634,6 +744,27 @@
       if (statsInterval) {
         clearInterval(statsInterval);
         statsInterval = null;
+      }
+
+      // Clean up audio visualization
+      if (visualizationInterval) {
+        clearInterval(visualizationInterval);
+        visualizationInterval = null;
+      }
+
+      if (audioAnalyser) {
+        audioAnalyser.disconnect();
+        audioAnalyser = null;
+      }
+
+      if (audioContext) {
+        // In a real implementation, we would close the audio context
+        // audioContext.close();
+      }
+
+      // Reset visualizer
+      if (audioVisualizer) {
+        audioVisualizer.updateLevel(0);
       }
 
       // Simulate disconnection process

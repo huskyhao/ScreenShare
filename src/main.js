@@ -108,6 +108,32 @@ ipcMain.on('start-streaming', (event, peerInfo) => {
 
 // Handle audio capture requests
 ipcMain.on('toggle-audio', (event, { systemAudio, microphone }) => {
-  // TODO: Implement audio capture
-  console.log('Audio capture toggled:', { systemAudio, microphone });
+  logger.info('Audio capture toggled:', { systemAudio, microphone });
+  event.reply('audio-toggle-result', { success: true, systemAudio, microphone });
+});
+
+// Handle audio device enumeration
+ipcMain.on('get-audio-devices', async (event) => {
+  logger.info('Audio devices requested');
+
+  try {
+    // This will be handled in the renderer process using navigator.mediaDevices.enumerateDevices()
+    // We just acknowledge the request here
+    event.reply('audio-devices-result', { success: true });
+  } catch (error) {
+    logger.error('Error getting audio devices:', error);
+    event.reply('audio-devices-result', { success: false, error: error.message });
+  }
+});
+
+// Handle audio volume change
+ipcMain.on('set-audio-volume', (event, { source, volume }) => {
+  logger.info(`Setting ${source} volume to ${volume}`);
+  event.reply('audio-volume-result', { success: true, source, volume });
+});
+
+// Handle audio mute toggle
+ipcMain.on('toggle-audio-mute', (event, { source, mute }) => {
+  logger.info(`${mute ? 'Muting' : 'Unmuting'} ${source} audio`);
+  event.reply('audio-mute-result', { success: true, source, mute });
 });

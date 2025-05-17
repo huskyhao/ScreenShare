@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ScreenShare</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="js/audio-visualizer.js"></script>
 </head>
 <body>
   <div class="container">
@@ -72,6 +73,44 @@
             <input type="checkbox" id="microphone">
             <label for="microphone">Microphone</label>
           </div>
+
+          <div id="audio-controls" class="hidden">
+            <div class="audio-control-row">
+              <label for="system-audio-device">System Audio Device:</label>
+              <select id="system-audio-device" disabled>
+                <option value="default">Default Output Device</option>
+              </select>
+            </div>
+
+            <div class="audio-control-row">
+              <label for="system-audio-volume">System Volume:</label>
+              <div class="volume-control">
+                <button id="system-audio-mute" class="icon-button">🔊</button>
+                <input type="range" id="system-audio-volume" min="0" max="100" value="100" step="1">
+                <span id="system-audio-volume-value">100%</span>
+              </div>
+            </div>
+
+            <div class="audio-control-row">
+              <label for="microphone-device">Microphone Device:</label>
+              <select id="microphone-device">
+                <option value="default">Default Input Device</option>
+              </select>
+            </div>
+
+            <div class="audio-control-row">
+              <label for="microphone-volume">Microphone Volume:</label>
+              <div class="volume-control">
+                <button id="microphone-mute" class="icon-button">🔊</button>
+                <input type="range" id="microphone-volume" min="0" max="100" value="80" step="1">
+                <span id="microphone-volume-value">80%</span>
+              </div>
+            </div>
+
+            <div class="audio-visualizer-container">
+              <div id="audio-visualizer"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -109,7 +148,7 @@
     </main>
 
     <footer>
-      <p>ScreenShare v0.1.0 | Powered by OBS & WebRTC</p>
+      <p>ScreenShare v0.5.0 | Powered by OBS & WebRTC</p>
     </footer>
   </div>
 
