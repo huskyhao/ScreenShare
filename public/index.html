@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScreenShare</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ScreenShare</h1>
+      <p>Share your screen with high quality and low latency</p>
+    </header>
+
+    <main>
+      <section class="capture-controls">
+        <h2>Capture Settings</h2>
+        <div class="control-group">
+          <label for="capture-source">Capture Source:</label>
+          <select id="capture-source">
+            <option value="screen">Entire Screen</option>
+            <option value="window">Specific Window</option>
+            <option value="game">Game</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="quality-preset">Quality Preset:</label>
+          <select id="quality-preset">
+            <option value="low">Low (720p, 30fps)</option>
+            <option value="medium" selected>Medium (1080p, 30fps)</option>
+            <option value="high">High (1080p, 60fps)</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+
+        <div id="custom-quality-controls" class="hidden">
+          <div class="control-group">
+            <label for="resolution">Resolution:</label>
+            <select id="resolution">
+              <option value="720p">720p</option>
+              <option value="1080p" selected>1080p</option>
+              <option value="1440p">1440p</option>
+              <option value="4k">4K</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="framerate">Frame Rate:</label>
+            <select id="framerate">
+              <option value="30">30 FPS</option>
+              <option value="60">60 FPS</option>
+              <option value="120">120 FPS</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="bitrate">Bitrate (Mbps):</label>
+            <input type="range" id="bitrate" min="1" max="20" value="5" step="1">
+            <span id="bitrate-value">5 Mbps</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="audio-options">Audio Options:</label>
+          <div class="checkbox-group">
+            <input type="checkbox" id="system-audio" checked>
+            <label for="system-audio">System Audio</label>
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="microphone">
+            <label for="microphone">Microphone</label>
+          </div>
+        </div>
+      </section>
+
+      <section class="preview">
+        <h2>Preview</h2>
+        <div id="preview-container">
+          <div id="no-preview">
+            <p>No preview available. Start capture to see preview.</p>
+          </div>
+          <video id="preview-video" class="hidden" autoplay muted></video>
+        </div>
+      </section>
+
+      <section class="connection">
+        <h2>Connection</h2>
+        <div class="control-group">
+          <button id="start-capture" class="primary-button">Start Capture</button>
+          <button id="stop-capture" class="secondary-button" disabled>Stop Capture</button>
+        </div>
+
+        <div id="sharing-controls" class="hidden">
+          <div class="control-group">
+            <label for="connection-id">Your Connection ID:</label>
+            <div class="copy-field">
+              <input type="text" id="connection-id" readonly>
+              <button id="copy-id" class="icon-button">Copy</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <p>Share this ID with your friend to allow them to connect.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>ScreenShare v0.1.0 | Powered by OBS & WebRTC</p>
+    </footer>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

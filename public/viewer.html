@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScreenShare Viewer</title>
+  <style>
+    :root {
+      --primary-color: #4a6bff;
+      --secondary-color: #6c757d;
+      --background-color: #f8f9fa;
+      --text-color: #212529;
+      --border-color: #dee2e6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      color: var(--primary-color);
+    }
+
+    header p {
+      font-size: 1.2rem;
+      color: var(--secondary-color);
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .connection-form {
+      width: 100%;
+      max-width: 500px;
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .connection-form h2 {
+      margin-bottom: 15px;
+      color: var(--primary-color);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+    }
+
+    .control-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.2s;
+    }
+
+    .primary-button {
+      background-color: var(--primary-color);
+      color: white;
+      width: 100%;
+    }
+
+    .primary-button:hover {
+      background-color: #3a5bef;
+    }
+
+    .primary-button:disabled {
+      background-color: #adb5bd;
+      cursor: not-allowed;
+    }
+
+    .video-container {
+      width: 100%;
+      background-color: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      aspect-ratio: 16 / 9;
+    }
+
+    #remote-video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .no-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      margin-top: 15px;
+    }
+
+    .control-button {
+      background-color: var(--secondary-color);
+      color: white;
+      margin: 0 5px;
+    }
+
+    .control-button:hover {
+      background-color: #5a6268;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      color: var(--secondary-color);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ScreenShare Viewer</h1>
+      <p>Watch high-quality screen sharing</p>
+    </header>
+
+    <main>
+      <div class="connection-form" id="connection-form">
+        <h2>Connect to Stream</h2>
+        <div class="control-group">
+          <label for="connection-id">Enter Connection ID:</label>
+          <input type="text" id="connection-id" placeholder="Enter the ID provided by the streamer">
+        </div>
+        <div class="control-group">
+          <button id="connect-button" class="primary-button">Connect</button>
+        </div>
+      </div>
+
+      <div class="video-container hidden" id="video-container">
+        <div class="no-video" id="no-video">
+          <p>Connecting to stream...</p>
+        </div>
+        <video id="remote-video" autoplay></video>
+        
+        <div class="controls">
+          <button id="mute-button" class="control-button">Mute</button>
+          <button id="fullscreen-button" class="control-button">Fullscreen</button>
+          <button id="disconnect-button" class="control-button">Disconnect</button>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>ScreenShare Viewer v0.1.0 | Powered by WebRTC</p>
+    </footer>
+  </div>
+
+  <script>
+    // DOM Elements
+    const connectionForm = document.getElementById('connection-form');
+    const connectionIdInput = document.getElementById('connection-id');
+    const connectButton = document.getElementById('connect-button');
+    const videoContainer = document.getElementById('video-container');
+    const noVideo = document.getElementById('no-video');
+    const remoteVideo = document.getElementById('remote-video');
+    const muteButton = document.getElementById('mute-button');
+    const fullscreenButton = document.getElementById('fullscreen-button');
+    const disconnectButton = document.getElementById('disconnect-button');
+
+    // State variables
+    let peerConnection = null;
+    let isConnected = false;
+    let isMuted = false;
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', initializeApp);
+    connectButton.addEventListener('click', connectToStream);
+    muteButton.addEventListener('click', toggleMute);
+    fullscreenButton.addEventListener('click', toggleFullscreen);
+    disconnectButton.addEventListener('click', disconnect);
+
+    // Initialize the application
+    function initializeApp() {
+      console.log('Initializing ScreenShare Viewer');
+    }
+
+    // Connect to a stream using the provided connection ID
+    function connectToStream() {
+      const connectionId = connectionIdInput.value.trim();
+      
+      if (!connectionId) {
+        alert('Please enter a valid connection ID');
+        return;
+      }
+      
+      console.log('Connecting to stream with ID:', connectionId);
+      
+      // Show the video container and hide the connection form
+      connectionForm.classList.add('hidden');
+      videoContainer.classList.remove('hidden');
+      
+      // TODO: Implement actual WebRTC connection
+      // For now, we'll just simulate a connection
+      
+      setTimeout(() => {
+        // Simulate a successful connection
+        noVideo.classList.add('hidden');
+        
+        // Create a dummy video stream
+        const canvas = document.createElement('canvas');
+        canvas.width = 1280;
+        canvas.height = 720;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw something on the canvas
+        setInterval(() => {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          ctx.fillStyle = '#4a6bff';
+          ctx.font = '48px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('ScreenShare Demo', canvas.width / 2, canvas.height / 2 - 50);
+          
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '24px sans-serif';
+          ctx.fillText('Connected to: ' + connectionId, canvas.width / 2, canvas.height / 2 + 50);
+          
+          const date = new Date();
+          ctx.fillText(date.toLocaleTimeString(), canvas.width / 2, canvas.height / 2 + 100);
+        }, 1000 / 30); // 30 FPS
+        
+        // Create a stream from the canvas
+        const stream = canvas.captureStream(30);
+        
+        // Add an audio track (silent)
+        const audioContext = new AudioContext();
+        const oscillator = audioContext.createOscillator();
+        const destination = audioContext.createMediaStreamDestination();
+        oscillator.connect(destination);
+        oscillator.start();
+        
+        stream.addTrack(destination.stream.getAudioTracks()[0]);
+        
+        // Set the stream as the source for the video element
+        remoteVideo.srcObject = stream;
+        
+        isConnected = true;
+      }, 2000);
+    }
+
+    // Toggle audio mute
+    function toggleMute() {
+      if (!isConnected) return;
+      
+      isMuted = !isMuted;
+      remoteVideo.muted = isMuted;
+      muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
+    }
+
+    // Toggle fullscreen
+    function toggleFullscreen() {
+      if (!isConnected) return;
+      
+      if (!document.fullscreenElement) {
+        videoContainer.requestFullscreen().catch(err => {
+          console.error('Failed to enter fullscreen mode:', err);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Disconnect from the stream
+    function disconnect() {
+      if (!isConnected) return;
+      
+      console.log('Disconnecting from stream');
+      
+      // Reset the video
+      remoteVideo.srcObject = null;
+      
+      // Show the connection form and hide the video container
+      connectionForm.classList.remove('hidden');
+      videoContainer.classList.add('hidden');
+      noVideo.classList.remove('hidden');
+      
+      // Reset state
+      isConnected = false;
+      isMuted = false;
+      muteButton.textContent = 'Mute';
+      
+      // TODO: Implement actual WebRTC disconnection
+    }
+  </script>
+</body>
+</html>

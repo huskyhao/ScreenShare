@@ -1,0 +1,32 @@
+{
+  "name": "screenshare",
+  "version": "0.1.0",
+  "description": "A lightweight screen sharing application for high-quality game streaming",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "server": "nodemon src/server.js",
+    "build": "electron-builder",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "screen-sharing",
+    "webrtc",
+    "obs",
+    "streaming"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^28.0.0",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "uuid": "^9.0.1",
+    "webrtc-adapter": "^8.2.3"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.9.1",
+    "nodemon": "^3.0.2"
+  }
+}
