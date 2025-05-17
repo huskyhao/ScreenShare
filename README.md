@@ -23,7 +23,13 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.6.0 (Current)
+### v0.6.1 (Current)
+- Fixed WebRTCConnection class export to properly instantiate the class
+- Added missing methods to WebRTCConnection class (on, _emitEvent, shutdown, _startStatsCollection)
+- Fixed event handling in WebRTC connections
+- Improved error handling in WebRTC connections
+
+### v0.6.0
 - Fixed WebRTC connection implementation for proper screen content transmission
 - Implemented complete P2P connection between host and viewer
 - Fixed signaling server to properly handle stream joining
