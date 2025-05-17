@@ -436,9 +436,8 @@
         // Connect to signaling server
         updateConnectionStatus('Connecting to signaling server...', 'unknown');
 
-        // Use your public server for signaling
-        let serverUrl = 'https://your-server-domain.com';
-        // Alternatively, use your server's IP address: 'http://your-server-ip:3000'
+        // Use your server IP for signaling
+        let serverUrl = 'http://123.56.80.178:3000';
 
         console.log(`Connecting to signaling server at: ${serverUrl}`);
         const socket = io(serverUrl, {

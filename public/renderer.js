@@ -224,9 +224,8 @@ function stopCapture() {
 function copyConnectionId() {
   if (!connectionId) return;
 
-  // Create a viewer URL with the connection ID using your public server
-  const viewerUrl = `https://your-server-domain.com/viewer?id=${connectionId}&autoconnect=true`;
-  // Alternatively, use your server's IP address: `http://your-server-ip:3000/viewer?id=${connectionId}&autoconnect=true`
+  // Create a viewer URL with the connection ID using your server IP
+  const viewerUrl = `http://123.56.80.178:3000/viewer?id=${connectionId}&autoconnect=true`;
 
   // Create a message with both the ID and the URL
   const message = `Connection ID: ${connectionId}\n\nDirect link: ${viewerUrl}`;
@@ -358,8 +357,7 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
       const connectionId = await Promise.race([
         webrtcConnection.initialize({
           isHost: true,
-          signalingServer: `https://your-server-domain.com`  // Use your public server address
-          // Alternatively, you can use your server's IP address: `http://your-server-ip:3000`
+          signalingServer: `http://123.56.80.178:3000`  // Use your actual server IP and port
         }),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Connection timeout - server might not be running')), 10000)
