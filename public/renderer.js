@@ -1,5 +1,6 @@
 // Import required Electron modules
 const { ipcRenderer } = require('electron');
+const WebRTCConnection = require('../src/network/webrtc-connection');
 
 // DOM Elements
 const captureSourceSelect = document.getElementById('capture-source');
@@ -34,7 +35,6 @@ const copyIdButton = document.getElementById('copy-id');
 let isCapturing = false;
 let localStream = null;
 let audioStream = null;
-let peerConnection = null;
 let connectionId = null;
 let audioVisualizer = null;
 let audioContext = null;
@@ -45,6 +45,7 @@ let audioDevices = {
   outputDevices: [],
   inputDevices: []
 };
+let webrtcConnection = null; // WebRTC connection instance
 let audioMuted = {
   system: false,
   microphone: false
@@ -158,6 +159,17 @@ function stopCapture() {
       microphone: false
     });
   }
+
+  // Clean up WebRTC connection
+  if (webrtcConnection) {
+    try {
+      webrtcConnection.shutdown();
+      webrtcConnection = null;
+      console.log('WebRTC connection closed');
+    } catch (error) {
+      console.error('Error shutting down WebRTC connection:', error);
+    }
+  }
 }
 
 // Copy connection ID to clipboard
@@ -261,9 +273,41 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
     stopCaptureButton.disabled = false;
     sharingControls.classList.remove('hidden');
 
-    // Generate a random connection ID
-    connectionId = Math.random().toString(36).substring(2, 10);
-    connectionIdInput.value = connectionId;
+    // Initialize WebRTC connection
+    try {
+      // Create a new WebRTC connection
+      webrtcConnection = new WebRTCConnection();
+
+      // Initialize as host
+      const connectionId = await webrtcConnection.initialize({
+        isHost: true,
+        signalingServer: 'http://localhost:3000'
+      });
+
+      // Set the connection ID
+      connectionIdInput.value = connectionId;
+
+      // Set the local stream
+      webrtcConnection.setLocalStream(stream);
+
+      // Set up event listeners
+      webrtcConnection.on('viewer-joined', (data) => {
+        console.log('Viewer joined:', data.viewerId);
+      });
+
+      webrtcConnection.on('viewer-left', (data) => {
+        console.log('Viewer left:', data.viewerId);
+      });
+
+      webrtcConnection.on('error', (error) => {
+        console.error('WebRTC error:', error);
+      });
+
+      console.log('WebRTC connection initialized with ID:', connectionId);
+    } catch (error) {
+      console.error('Failed to initialize WebRTC connection:', error);
+      alert('Failed to initialize connection: ' + error.message);
+    }
 
     // Handle stream ending
     stream.getVideoTracks()[0].onended = () => {

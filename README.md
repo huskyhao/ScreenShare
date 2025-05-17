@@ -23,7 +23,16 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.5.0 (Current)
+### v0.6.0 (Current)
+- Fixed WebRTC connection implementation for proper screen content transmission
+- Implemented complete P2P connection between host and viewer
+- Fixed signaling server to properly handle stream joining
+- Enhanced viewer page to properly receive and display the screen content
+- Improved connection reliability with better error handling
+- Added proper cleanup of WebRTC connections when disconnecting
+- Fixed audio transmission through WebRTC
+
+### v0.5.0
 - Added comprehensive audio capture and sharing functionality
 - Implemented system audio and microphone capture with individual controls
 - Added audio visualization for both streamer and viewer

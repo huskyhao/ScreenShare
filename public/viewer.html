@@ -317,10 +317,11 @@
     </main>
 
     <footer>
-      <p>ScreenShare Viewer v0.5.0 | Powered by WebRTC</p>
+      <p>ScreenShare Viewer v0.6.0 | Powered by WebRTC</p>
     </footer>
   </div>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script>
     // DOM Elements
     const connectionForm = document.getElementById('connection-form');
@@ -393,7 +394,7 @@
     }
 
     // Connect to a stream using the provided connection ID
-    function connectToStream() {
+    async function connectToStream() {
       const connectionId = connectionIdInput.value.trim();
 
       if (!connectionId) {
@@ -414,67 +415,193 @@
       connectionStats.classList.add('hidden');
       isStatsVisible = false;
 
-      // TODO: Implement actual WebRTC connection
-      // For now, we'll just simulate a connection
+      try {
+        // Connect to signaling server
+        updateConnectionStatus('Connecting to signaling server...', 'unknown');
+        const socket = io('http://localhost:3000');
 
-      // Simulate connection process with multiple states
-      setTimeout(() => {
+        // Wait for connection to signaling server
+        await new Promise((resolve, reject) => {
+          socket.on('connect', resolve);
+          socket.on('connect_error', reject);
+
+          // Set a timeout
+          setTimeout(() => {
+            reject(new Error('Connection to signaling server timed out'));
+          }, 5000);
+        });
+
         updateConnectionStatus('Establishing connection...', 'unknown');
 
-        setTimeout(() => {
-          updateConnectionStatus('Negotiating...', 'unknown');
+        // Join the stream
+        socket.emit('join-stream', connectionId);
 
+        // Wait for confirmation or error
+        const joinResult = await new Promise((resolve, reject) => {
+          socket.once('joined-stream', (streamId) => {
+            resolve({ success: true, streamId });
+          });
+
+          socket.once('error', (error) => {
+            reject(new Error(error.message || 'Failed to join stream'));
+          });
+
+          // Set a timeout
           setTimeout(() => {
-            // Simulate a successful connection
+            reject(new Error('Stream joining timed out'));
+          }, 5000);
+        });
+
+        if (!joinResult.success) {
+          throw new Error('Failed to join stream');
+        }
+
+        updateConnectionStatus('Negotiating connection...', 'unknown');
+
+        // Create peer connection with STUN servers
+        peerConnection = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+          ]
+        });
+
+        // Set up event handlers
+        peerConnection.ontrack = (event) => {
+          console.log('Received remote track:', event.track.kind);
+
+          if (event.streams && event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+
+            // Set up audio visualization if there's an audio track
+            if (event.track.kind === 'audio') {
+              setupAudioVisualization(event.streams[0]);
+            }
+
+            // Hide the "no video" message
             noVideo.classList.add('hidden');
-
-            // Create a dummy video stream
-            const canvas = document.createElement('canvas');
-            canvas.width = 1280;
-            canvas.height = 720;
-            const ctx = canvas.getContext('2d');
-
-            // Draw something on the canvas
-            setInterval(() => {
-              ctx.fillStyle = '#000000';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-              ctx.fillStyle = '#4a6bff';
-              ctx.font = '48px sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText('ScreenShare Demo', canvas.width / 2, canvas.height / 2 - 50);
-
-              ctx.fillStyle = '#ffffff';
-              ctx.font = '24px sans-serif';
-              ctx.fillText('Connected to: ' + connectionId, canvas.width / 2, canvas.height / 2 + 50);
-
-              const date = new Date();
-              ctx.fillText(date.toLocaleTimeString(), canvas.width / 2, canvas.height / 2 + 100);
-            }, 1000 / 30); // 30 FPS
-
-            // Create a stream from the canvas
-            const stream = canvas.captureStream(30);
-
-            // Add an audio track (silent)
-            const audioContext = new AudioContext();
-            const oscillator = audioContext.createOscillator();
-            const destination = audioContext.createMediaStreamDestination();
-            oscillator.connect(destination);
-            oscillator.start();
-
-            stream.addTrack(destination.stream.getAudioTracks()[0]);
-
-            // Set the stream as the source for the video element
-            remoteVideo.srcObject = stream;
-
-            // Set up audio visualization
-            setupAudioVisualization(stream);
 
             // Update connection status
             updateConnectionStatus('Connected', 'good');
-
             isConnected = true;
+
+            // Start collecting stats
+            startStatsCollection();
+          }
+        };
+
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            // Send the ICE candidate to the host via the signaling server
+            socket.emit('signal', {
+              to: joinResult.hostSocketId,
+              signal: event.candidate
+            });
+          }
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+          console.log('ICE connection state:', peerConnection.iceConnectionState);
+
+          if (peerConnection.iceConnectionState === 'disconnected' ||
+              peerConnection.iceConnectionState === 'failed') {
+            updateConnectionStatus('Connection lost, attempting to reconnect...', 'poor');
+            attemptReconnect();
+          } else if (peerConnection.iceConnectionState === 'connected') {
+            updateConnectionStatus('Connected', 'good');
+          }
+        };
+
+        // Handle signaling messages
+        socket.on('signal', async (data) => {
+          try {
+            const { from, signal } = data;
+
+            if (signal.type === 'offer') {
+              await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+
+              const answer = await peerConnection.createAnswer();
+              await peerConnection.setLocalDescription(answer);
+
+              socket.emit('signal', {
+                to: from,
+                signal: answer
+              });
+
+              console.log('Received offer and sent answer');
+            } else if (signal.type === 'answer') {
+              await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+              console.log('Received answer');
+            } else if (signal.candidate) {
+              await peerConnection.addIceCandidate(new RTCIceCandidate(signal));
+              console.log('Added ICE candidate');
+            }
+          } catch (error) {
+            console.error('Error handling signal:', error);
+          }
+        });
+
+        // Handle stream ended
+        socket.on('stream-ended', () => {
+          console.log('Stream ended by host');
+          disconnect();
+          alert('The stream has ended');
+        });
+
+        // Create a data channel for control messages
+        const dataChannel = peerConnection.createDataChannel('control', {
+          ordered: true,
+          maxRetransmits: 3
+        });
+
+        dataChannel.onopen = () => {
+          console.log('Data channel opened');
+
+          // Send quality preference
+          const preferredQuality = localStorage.getItem('preferredQuality') || 'auto';
+          dataChannel.send(JSON.stringify({
+            type: 'quality-change',
+            quality: preferredQuality
+          }));
+        };
+
+        dataChannel.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            console.log('Received message:', message);
+
+            if (message.type === 'stats') {
+              // Update stats display with actual values
+              updateStatsFromMessage(message.stats);
+            }
+          } catch (error) {
+            console.error('Error handling data channel message:', error);
+          }
+        };
+
+        // Wait for the host to send an offer
+        console.log('Waiting for host to initiate connection...');
+      } catch (error) {
+        console.error('Connection error:', error);
+        updateConnectionStatus('Connection failed: ' + error.message, 'poor');
+
+        // Show reconnect button
+        noVideo.innerHTML = `
+          <p>Failed to connect: ${error.message}</p>
+          <button id="reconnect-button" class="primary-button" style="margin-top: 15px;">Try Again</button>
+        `;
+
+        const reconnectButton = document.getElementById('reconnect-button');
+        reconnectButton.addEventListener('click', () => {
+          // Reset reconnect attempts
+          reconnectAttempts = 0;
+
+          // Try to connect again
+          noVideo.innerHTML = '<p>Connecting to stream...</p>';
+          connectToStream();
+        });
+      }
 
             // Simulate occasional connection quality changes
             setInterval(() => {
@@ -737,8 +864,18 @@
       // Update status
       updateConnectionStatus('Disconnecting...', 'unknown');
 
+      // Close the peer connection
+      if (peerConnection) {
+        // Close the peer connection
+        peerConnection.close();
+        peerConnection = null;
+      }
+
       // Reset the video
-      remoteVideo.srcObject = null;
+      if (remoteVideo.srcObject) {
+        remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+        remoteVideo.srcObject = null;
+      }
 
       // Clear any intervals
       if (statsInterval) {
@@ -758,8 +895,13 @@
       }
 
       if (audioContext) {
-        // In a real implementation, we would close the audio context
-        // audioContext.close();
+        // Close the audio context
+        try {
+          audioContext.close();
+          audioContext = null;
+        } catch (error) {
+          console.error('Error closing audio context:', error);
+        }
       }
 
       // Reset visualizer
@@ -767,32 +909,27 @@
         audioVisualizer.updateLevel(0);
       }
 
-      // Simulate disconnection process
-      setTimeout(() => {
-        // Show the connection form and hide the video container
-        connectionForm.classList.remove('hidden');
-        videoContainer.classList.add('hidden');
-        noVideo.classList.remove('hidden');
+      // Show the connection form and hide the video container
+      connectionForm.classList.remove('hidden');
+      videoContainer.classList.add('hidden');
+      noVideo.classList.remove('hidden');
 
-        // Reset state
-        isConnected = false;
-        isMuted = false;
-        isStatsVisible = false;
-        connectionQuality = 'unknown';
-        reconnectAttempts = 0;
+      // Reset state
+      isConnected = false;
+      isMuted = false;
+      isStatsVisible = false;
+      connectionQuality = 'unknown';
+      reconnectAttempts = 0;
 
-        // Reset UI elements
-        muteButton.textContent = '🔊 Mute';
-        statsButton.textContent = '📊 Stats';
-        connectionStats.classList.add('hidden');
+      // Reset UI elements
+      muteButton.textContent = '🔊 Mute';
+      statsButton.textContent = '📊 Stats';
+      connectionStats.classList.add('hidden');
 
-        // Clear connection ID input for security
-        connectionIdInput.value = '';
+      // Clear connection ID input for security
+      connectionIdInput.value = '';
 
-        console.log('Disconnected from stream');
-
-        // TODO: Implement actual WebRTC disconnection
-      }, 500);
+      console.log('Disconnected from stream');
     }
 
     // Attempt to reconnect to the stream
