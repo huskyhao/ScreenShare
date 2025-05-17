@@ -23,7 +23,13 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.6.3 (Current)
+### v0.6.4 (Current)
+- Fixed Socket.IO connection issues with relative URLs
+- Added missing WebRTC methods for handling answers and ICE candidates
+- Improved cross-device compatibility
+- Fixed "xhr poll error" when connecting from different devices
+
+### v0.6.3
 - Fixed WebRTC connection implementation for proper screen and audio sharing
 - Implemented ICE candidate exchange between peers
 - Fixed track event handling to properly display remote video
