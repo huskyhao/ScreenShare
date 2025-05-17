@@ -123,15 +123,23 @@ function stopCapture() {
 
   console.log('Stopping capture');
 
-  // Stop all tracks in the video stream
+  // Stop all tracks in the video stream (which may include audio tracks after combining)
   if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
+    console.log(`Stopping all tracks in localStream: Video tracks: ${localStream.getVideoTracks().length}, Audio tracks: ${localStream.getAudioTracks().length}`);
+    localStream.getTracks().forEach(track => {
+      console.log(`Stopping ${track.kind} track`);
+      track.stop();
+    });
     localStream = null;
   }
 
-  // Stop audio stream if it exists
+  // Stop separate audio stream if it exists
   if (window.audioStream) {
-    window.audioStream.getTracks().forEach(track => track.stop());
+    console.log(`Stopping all tracks in audioStream: Audio tracks: ${window.audioStream.getAudioTracks().length}`);
+    window.audioStream.getTracks().forEach(track => {
+      console.log(`Stopping audio track`);
+      track.stop();
+    });
     window.audioStream = null;
   }
 
@@ -398,6 +406,36 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
               systemAudio: systemAudioCheckbox.checked,
               microphone: microphoneCheckbox.checked
             });
+
+            // Add audio tracks to the stream that's being shared via WebRTC
+            if (localStream && webrtcConnection) {
+              console.log('Adding audio tracks to WebRTC stream');
+
+              // Create a new stream that combines video from screen capture and audio from microphone
+              const combinedStream = new MediaStream();
+
+              // Add all video tracks from the screen capture
+              localStream.getVideoTracks().forEach(track => {
+                combinedStream.addTrack(track);
+              });
+
+              // Add all audio tracks from the audio stream
+              audioStream.getAudioTracks().forEach(track => {
+                combinedStream.addTrack(track);
+              });
+
+              // Log the combined stream details
+              console.log(`Combined stream - Video tracks: ${combinedStream.getVideoTracks().length}, Audio tracks: ${combinedStream.getAudioTracks().length}`);
+
+              // Update the local stream reference
+              localStream = combinedStream;
+
+              // Update the preview with the combined stream
+              previewVideo.srcObject = combinedStream;
+
+              // Set the combined stream in the WebRTC connection
+              webrtcConnection.setLocalStream(combinedStream);
+            }
           })
           .catch(error => {
             console.error('Error getting audio stream:', error);

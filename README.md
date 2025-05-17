@@ -23,7 +23,14 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.6.5 (Current)
+### v0.6.6 (Current)
+- Fixed audio sharing issue where system audio wasn't being transmitted to viewers
+- Improved audio stream handling by properly combining video and audio streams
+- Enhanced audio track management in WebRTC connections
+- Added detailed logging for audio stream debugging
+- Improved stream cleanup when stopping capture
+
+### v0.6.5
 - Fixed "Connection failed: Stream not found" error when connecting to streams
 - Enhanced error handling with detailed troubleshooting tips for users
 - Improved stream management to prevent orphaned streams
