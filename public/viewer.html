@@ -602,35 +602,6 @@
           connectToStream();
         });
       }
-
-            // Simulate occasional connection quality changes
-            setInterval(() => {
-              // 10% chance of quality change
-              if (Math.random() < 0.1) {
-                const qualities = ['good', 'fair', 'poor'];
-                const randomQuality = qualities[Math.floor(Math.random() * qualities.length)];
-
-                if (randomQuality !== connectionQuality) {
-                  updateConnectionStatus('Connected', randomQuality);
-
-                  // If quality is poor, show a reconnection message occasionally
-                  if (randomQuality === 'poor' && Math.random() < 0.3) {
-                    setTimeout(() => {
-                      updateConnectionStatus('Connection unstable, reconnecting...', 'poor');
-
-                      // Simulate reconnection
-                      setTimeout(() => {
-                        updateConnectionStatus('Connected', 'good');
-                      }, 2000);
-                    }, 1000);
-                  }
-                }
-              }
-            }, 10000); // Check every 10 seconds
-
-          }, 1000);
-        }, 800);
-      }, 500);
     }
 
     // Toggle audio mute
@@ -816,44 +787,74 @@
 
     // Update connection stats
     function updateStats() {
-      if (!isConnected || !isStatsVisible) return;
-
-      // In a real implementation, we would get these values from the RTCPeerConnection stats
-      // For now, just simulate some values
+      if (!isConnected || !isStatsVisible || !peerConnection) return;
 
       // Get video dimensions
       const videoWidth = remoteVideo.videoWidth;
       const videoHeight = remoteVideo.videoHeight;
       statsResolution.textContent = `${videoWidth}x${videoHeight}`;
 
-      // Simulate bitrate (random fluctuation between 2-5 Mbps)
-      const bitrate = (2 + Math.random() * 3).toFixed(1);
-      statsBitrate.textContent = `${bitrate} Mbps`;
+      // Get actual stats from the RTCPeerConnection
+      peerConnection.getStats().then(stats => {
+        let bitrate = 0;
+        let packetsLost = 0;
+        let framerate = 0;
+        let jitter = 0;
 
-      // Simulate framerate (random fluctuation around 30fps)
-      const framerate = Math.floor(25 + Math.random() * 10);
-      statsFramerate.textContent = `${framerate} fps`;
+        stats.forEach(report => {
+          if (report.type === 'inbound-rtp' && report.kind === 'video') {
+            // Calculate bitrate
+            if (report.bytesReceived && report.timestamp && lastStats.timestamp && lastStats.bytesReceived) {
+              const bytesReceived = report.bytesReceived - lastStats.bytesReceived;
+              const timeDiff = report.timestamp - lastStats.timestamp;
+              bitrate = (bytesReceived * 8 / timeDiff) * 1000 / 1024 / 1024; // Convert to Mbps
+            }
 
-      // Simulate latency (random fluctuation between 50-150ms)
-      const latency = Math.floor(50 + Math.random() * 100);
-      statsLatency.textContent = `${latency} ms`;
+            // Get other stats
+            packetsLost = report.packetsLost || 0;
+            framerate = report.framesPerSecond || 0;
 
-      // Update audio stats
-      statsAudio.textContent = isMuted ? 'Muted' : 'Active';
+            // Update last stats
+            lastStats.bytesReceived = report.bytesReceived;
+            lastStats.timestamp = report.timestamp;
+          } else if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+            jitter = report.jitter || 0;
+          }
+        });
 
-      // Update connection quality based on simulated values
-      let quality = 'good';
-      if (latency > 120 || bitrate < 2.5) {
-        quality = 'poor';
-      } else if (latency > 80 || bitrate < 3.5) {
-        quality = 'fair';
-      }
+        // Update stats display
+        statsBitrate.textContent = `${bitrate.toFixed(1)} Mbps`;
+        statsFramerate.textContent = `${Math.round(framerate)} fps`;
 
-      // Only update status if quality changed
-      if (quality !== connectionQuality) {
-        updateConnectionStatus('Connected', quality);
-      }
+        // Calculate latency from jitter
+        const latency = Math.round(jitter * 1000) + 50; // Add 50ms base latency
+        statsLatency.textContent = `${latency} ms`;
+
+        // Update audio stats
+        statsAudio.textContent = isMuted ? 'Muted' : 'Active';
+
+        // Update connection quality based on actual values
+        let quality = 'good';
+        if (packetsLost > 50 || bitrate < 1.0 || latency > 150) {
+          quality = 'poor';
+        } else if (packetsLost > 20 || bitrate < 2.0 || latency > 100) {
+          quality = 'fair';
+        }
+
+        // Only update status if quality changed
+        if (quality !== connectionQuality) {
+          updateConnectionStatus('Connected', quality);
+        }
+      }).catch(error => {
+        console.error('Error getting stats:', error);
+      });
     }
+
+    // Initialize last stats object for bitrate calculation
+    const lastStats = {
+      bytesReceived: 0,
+      timestamp: 0
+    };
 
     // Disconnect from the stream
     function disconnect() {
@@ -962,16 +963,15 @@
       reconnectAttempts++;
       updateConnectionStatus(`Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`, 'poor');
 
-      // Simulate reconnection attempt
+      // Close the existing peer connection
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+
+      // Try to reconnect after a short delay
       setTimeout(() => {
-        // 70% chance of successful reconnection
-        if (Math.random() < 0.7) {
-          updateConnectionStatus('Connected', 'good');
-          reconnectAttempts = 0;
-        } else {
-          // Failed to reconnect, try again
-          attemptReconnect();
-        }
+        connectToStream();
       }, 1500);
     }
   </script>

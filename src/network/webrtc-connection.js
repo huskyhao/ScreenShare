@@ -684,32 +684,7 @@ class WebRTCConnection {
     }
   }
 
-  /**
-   * Disconnect from all peers and clean up resources
-   */
-  shutdown() {
-    try {
-      console.log('Shutting down WebRTC connections...');
 
-      // Close all peer connections
-      for (const [peerId, connection] of this.peerConnections.entries()) {
-        connection.close();
-      }
-
-      this.peerConnections.clear();
-
-      // Close the signaling connection
-      if (this.signaling) {
-        // TODO: Close the signaling connection
-      }
-
-      this.localStream = null;
-      this.connectionId = null;
-    } catch (error) {
-      console.error('Failed to shut down WebRTC connections:', error);
-      throw error;
-    }
-  }
 
   /**
    * Set up event handlers for a peer connection
@@ -722,7 +697,17 @@ class WebRTCConnection {
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
         console.log('New ICE candidate for peer:', peerId);
-        // TODO: Send the ICE candidate to the peer via the signaling server
+
+        // Send the ICE candidate to the peer via the signaling server
+        if (this.signaling) {
+          this.signaling.emit('signal', {
+            to: peerId,
+            signal: event.candidate
+          });
+          console.log('Sent ICE candidate to peer:', peerId);
+        } else {
+          console.error('No signaling connection available to send ICE candidate');
+        }
       }
     };
 
@@ -739,8 +724,22 @@ class WebRTCConnection {
 
     // Track event (when the peer adds a track)
     peerConnection.ontrack = (event) => {
-      console.log('Received track from peer:', peerId);
-      // TODO: Handle the received track (e.g., display the video)
+      console.log('Received track from peer:', peerId, 'kind:', event.track.kind);
+
+      // Emit an event with the received track
+      this._emitEvent('track', {
+        peerId,
+        track: event.track,
+        streams: event.streams
+      });
+
+      // If this is a viewer, set the remote stream
+      if (!this.isHost && event.streams && event.streams.length > 0) {
+        this._emitEvent('stream', {
+          peerId,
+          stream: event.streams[0]
+        });
+      }
     };
   }
 
@@ -809,8 +808,16 @@ class WebRTCConnection {
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
 
-      // TODO: Send the answer to the peer via the signaling server
-      console.log('Sending answer to peer:', peerId);
+      // Send the answer to the peer via the signaling server
+      if (this.signaling) {
+        this.signaling.emit('signal', {
+          to: peerId,
+          signal: answer
+        });
+        console.log('Sent answer to peer:', peerId);
+      } else {
+        throw new Error('No signaling connection available to send answer');
+      }
     } catch (error) {
       console.error('Failed to handle offer from peer:', error);
       throw error;
