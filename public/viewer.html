@@ -418,7 +418,8 @@
       try {
         // Connect to signaling server
         updateConnectionStatus('Connecting to signaling server...', 'unknown');
-        const socket = io('http://localhost:3000');
+        // Use relative URL to connect to the same host that serves the page
+        const socket = io('/');
 
         // Wait for connection to signaling server
         await new Promise((resolve, reject) => {

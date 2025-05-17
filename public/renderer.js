@@ -281,7 +281,7 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
       // Initialize as host
       const connectionId = await webrtcConnection.initialize({
         isHost: true,
-        signalingServer: 'http://localhost:3000'
+        signalingServer: '/'
       });
 
       // Set the connection ID

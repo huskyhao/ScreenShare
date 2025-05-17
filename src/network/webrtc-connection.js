@@ -55,7 +55,7 @@ class WebRTCConnection {
 
       // Set options
       this.isHost = options.isHost !== undefined ? options.isHost : false;
-      const signalingServer = options.signalingServer || 'http://localhost:3000';
+      const signalingServer = options.signalingServer || '/';
 
       // Connect to signaling server
       console.log(`Connecting to signaling server at ${signalingServer}...`);
@@ -820,6 +820,72 @@ class WebRTCConnection {
       }
     } catch (error) {
       console.error('Failed to handle offer from peer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle an incoming answer from a peer
+   * @param {string} peerId - The peer's connection ID
+   * @param {RTCSessionDescriptionInit} answer - The answer
+   * @private
+   */
+  async _handleAnswer(peerId, answer) {
+    try {
+      console.log('Received answer from peer:', peerId);
+
+      if (!this.peerConnections.has(peerId)) {
+        throw new Error(`No peer connection for peer: ${peerId}`);
+      }
+
+      const peerConnection = this.peerConnections.get(peerId);
+
+      // Set the remote description
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+      console.log('Set remote description for peer:', peerId);
+
+      // Apply any pending ICE candidates
+      if (this.pendingCandidates.has(peerId)) {
+        const candidates = this.pendingCandidates.get(peerId);
+        for (const candidate of candidates) {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          console.log('Applied pending ICE candidate for peer:', peerId);
+        }
+        this.pendingCandidates.set(peerId, []);
+      }
+    } catch (error) {
+      console.error('Failed to handle answer from peer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle an incoming ICE candidate from a peer
+   * @param {string} peerId - The peer's connection ID
+   * @param {RTCIceCandidateInit} candidate - The ICE candidate
+   * @private
+   */
+  async _handleIceCandidate(peerId, candidate) {
+    try {
+      console.log('Received ICE candidate from peer:', peerId);
+
+      if (!this.peerConnections.has(peerId)) {
+        // Store the candidate for later
+        if (!this.pendingCandidates.has(peerId)) {
+          this.pendingCandidates.set(peerId, []);
+        }
+        this.pendingCandidates.get(peerId).push(candidate);
+        console.log('Stored pending ICE candidate for peer:', peerId);
+        return;
+      }
+
+      const peerConnection = this.peerConnections.get(peerId);
+
+      // Add the ICE candidate
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      console.log('Added ICE candidate for peer:', peerId);
+    } catch (error) {
+      console.error('Failed to handle ICE candidate from peer:', error);
       throw error;
     }
   }
