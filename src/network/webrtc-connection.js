@@ -492,6 +492,84 @@ class WebRTCConnection {
   }
 
   /**
+   * Register an event listener
+   * @param {string} event - The event name
+   * @param {Function} callback - The callback function
+   */
+  on(event, callback) {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, []);
+    }
+
+    this.eventListeners.get(event).push(callback);
+  }
+
+  /**
+   * Emit an event to all registered listeners
+   * @param {string} event - The event name
+   * @param {Object} data - The event data
+   * @private
+   */
+  _emitEvent(event, data) {
+    if (this.eventListeners.has(event)) {
+      for (const callback of this.eventListeners.get(event)) {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${event}:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Shutdown all connections and clean up resources
+   */
+  shutdown() {
+    try {
+      console.log('Shutting down WebRTC connections...');
+
+      // Close all peer connections
+      for (const [peerId, connection] of this.peerConnections.entries()) {
+        connection.close();
+      }
+
+      // Clear all collections
+      this.peerConnections.clear();
+      this.dataChannels.clear();
+      this.pendingCandidates.clear();
+
+      // Stop stats collection
+      if (this.statsInterval) {
+        clearInterval(this.statsInterval);
+        this.statsInterval = null;
+      }
+
+      // Disconnect from signaling server
+      if (this.signaling) {
+        // If we're the host, notify viewers that the stream has ended
+        if (this.isHost && this.connectionId) {
+          this.signaling.emit('end-stream', this.connectionId);
+        }
+
+        this.signaling.disconnect();
+        this.signaling = null;
+      }
+
+      // Reset state
+      this.localStream = null;
+      this.connectionId = null;
+      this.connectionState = 'disconnected';
+      this.reconnectAttempts = 0;
+
+      console.log('WebRTC connections shut down successfully');
+    } catch (error) {
+      console.error('Error shutting down WebRTC connections:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Send a ping message to measure round-trip time
    * @param {string} peerId - The peer's connection ID
    * @private
@@ -501,6 +579,62 @@ class WebRTCConnection {
       type: 'ping',
       timestamp: Date.now()
     });
+  }
+
+  /**
+   * Start collecting connection statistics periodically
+   * @private
+   */
+  _startStatsCollection() {
+    // Clear any existing interval
+    if (this.statsInterval) {
+      clearInterval(this.statsInterval);
+    }
+
+    // Collect stats every 2 seconds
+    this.statsInterval = setInterval(() => {
+      this._collectStats();
+    }, 2000);
+  }
+
+  /**
+   * Collect connection statistics from all peer connections
+   * @private
+   */
+  _collectStats() {
+    // Skip if no peer connections
+    if (this.peerConnections.size === 0) return;
+
+    // For each peer connection
+    for (const [peerId, connection] of this.peerConnections.entries()) {
+      // Skip if connection is closed
+      if (connection.connectionState === 'closed') continue;
+
+      // Get stats
+      connection.getStats().then(stats => {
+        // Process stats
+        stats.forEach(report => {
+          if (report.type === 'inbound-rtp') {
+            // Update inbound stats
+            this.stats.bytesReceived = report.bytesReceived || 0;
+            this.stats.packetsReceived = report.packetsReceived || 0;
+            this.stats.packetsLost = report.packetsLost || 0;
+            this.stats.jitter = report.jitter || 0;
+          } else if (report.type === 'outbound-rtp') {
+            // Update outbound stats
+            this.stats.bytesSent = report.bytesSent || 0;
+            this.stats.packetsSent = report.packetsSent || 0;
+          }
+        });
+
+        // Send stats to peer if we're the host
+        if (this.isHost) {
+          this._sendStats(peerId);
+        }
+      }).catch(error => {
+        console.error('Error getting stats:', error);
+      });
+    }
   }
 
   /**
@@ -684,4 +818,4 @@ class WebRTCConnection {
   }
 }
 
-module.exports = new WebRTCConnection();
+module.exports = WebRTCConnection;
