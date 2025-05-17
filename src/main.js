@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, desktopCapturer } = require('electron');
 const path = require('path');
 const url = require('url');
+const logger = require('./utils/logger').getComponentLogger('main');
 
 // Keep a global reference of the window object to prevent garbage collection
 let mainWindow;
@@ -17,9 +18,19 @@ function createWindow() {
       nodeIntegration: true,
       contextIsolation: false,
       enableRemoteModule: true,
+      webSecurity: false, // Required for screen capture
     },
     title: 'ScreenShare',
     icon: path.join(__dirname, '../public/icon.png'),
+  });
+
+  // Set permissions for media access
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'media') {
+      callback(true); // Allow media access
+    } else {
+      callback(false);
+    }
   });
 
   // Load the index.html file
@@ -64,9 +75,29 @@ app.on('activate', () => {
 // These will be implemented as we develop the application features
 
 // Handle screen capture requests
-ipcMain.on('start-capture', (event, options) => {
-  // TODO: Implement OBS integration for screen capture
-  console.log('Screen capture requested with options:', options);
+ipcMain.on('start-capture', async (event, options) => {
+  logger.info('Screen capture requested with options:', options);
+
+  try {
+    // Get available sources
+    const sources = await desktopCapturer.getSources({
+      types: ['window', 'screen'],
+      thumbnailSize: { width: 0, height: 0 }
+    });
+
+    // Send the sources back to the renderer process
+    event.reply('capture-sources', sources);
+    logger.info(`Found ${sources.length} capture sources`);
+  } catch (error) {
+    logger.error('Error getting capture sources:', error);
+    event.reply('capture-error', { message: error.message });
+  }
+});
+
+// Handle source selection
+ipcMain.on('select-source', (event, sourceId) => {
+  logger.info('Source selected:', sourceId);
+  event.reply('source-selected', sourceId);
 });
 
 // Handle P2P connection requests
