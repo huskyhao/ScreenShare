@@ -224,26 +224,23 @@ function stopCapture() {
 function copyConnectionId() {
   if (!connectionId) return;
 
-  // Get the port from the signaling server
-  ipcRenderer.send('get-signaling-server-port');
-  ipcRenderer.once('signaling-server-port', (event, port) => {
-    // Create a viewer URL with the connection ID
-    const viewerUrl = `http://localhost:${port}/viewer?id=${connectionId}&autoconnect=true`;
+  // Create a viewer URL with the connection ID using your public server
+  const viewerUrl = `https://your-server-domain.com/viewer?id=${connectionId}&autoconnect=true`;
+  // Alternatively, use your server's IP address: `http://your-server-ip:3000/viewer?id=${connectionId}&autoconnect=true`
 
-    // Create a message with both the ID and the URL
-    const message = `Connection ID: ${connectionId}\n\nDirect link: ${viewerUrl}`;
+  // Create a message with both the ID and the URL
+  const message = `Connection ID: ${connectionId}\n\nDirect link: ${viewerUrl}`;
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(message)
-      .then(() => {
-        alert('Connection ID and direct link copied to clipboard!\n\nShare this with viewers to connect to your stream.');
-      })
-      .catch(err => {
-        console.error('Failed to copy connection info:', err);
-        // Fallback to just copying the ID if the clipboard API fails
-        alert(`Connection ID: ${connectionId}\n\nDirect link: ${viewerUrl}\n\n(Please copy this manually)`);
-      });
-  });
+  // Copy to clipboard
+  navigator.clipboard.writeText(message)
+    .then(() => {
+      alert('Connection ID and direct link copied to clipboard!\n\nShare this with viewers to connect to your stream.');
+    })
+    .catch(err => {
+      console.error('Failed to copy connection info:', err);
+      // Fallback to just copying the ID if the clipboard API fails
+      alert(`Connection ID: ${connectionId}\n\nDirect link: ${viewerUrl}\n\n(Please copy this manually)`);
+    });
 }
 
 // Generate a random connection ID
@@ -361,7 +358,8 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
       const connectionId = await Promise.race([
         webrtcConnection.initialize({
           isHost: true,
-          signalingServer: `http://localhost:${port}`  // Use the dynamic port
+          signalingServer: `https://your-server-domain.com`  // Use your public server address
+          // Alternatively, you can use your server's IP address: `http://your-server-ip:3000`
         }),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Connection timeout - server might not be running')), 10000)

@@ -436,20 +436,9 @@
         // Connect to signaling server
         updateConnectionStatus('Connecting to signaling server...', 'unknown');
 
-        // Determine the correct server URL
-        // First try to connect to the same host that serves the page
-        // This works when the viewer page is served by the signaling server
-        let serverUrl = '/';
-
-        // If we're accessing the page directly from the file system,
-        // we need to connect to localhost with the correct port
-        if (window.location.protocol === 'file:') {
-          // Default to port 3000, but allow override via URL parameter
-          const urlParams = new URLSearchParams(window.location.search);
-          const port = urlParams.get('port') || '3000';
-          serverUrl = `http://localhost:${port}`;
-          console.log(`Detected file:// protocol, connecting to ${serverUrl}`);
-        }
+        // Use your public server for signaling
+        let serverUrl = 'https://your-server-domain.com';
+        // Alternatively, use your server's IP address: 'http://your-server-ip:3000'
 
         console.log(`Connecting to signaling server at: ${serverUrl}`);
         const socket = io(serverUrl, {

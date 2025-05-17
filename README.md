@@ -23,7 +23,14 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.6.9 (Current)
+### v0.7.0 (Current)
+- Added support for hosting the signaling server on a public server
+- Modified client code to connect to remote signaling server
+- Updated connection sharing to use the public server URL
+- Improved cross-network connectivity with remote signaling
+- Enhanced documentation for server deployment
+
+### v0.6.9
 - Added IPv6/IPv4 interoperability support using multiple public STUN servers
 - Implemented WebRTC configuration for cross-network connectivity
 - Added support for connections between IPv6 and IPv4 networks
@@ -232,6 +239,33 @@ The application supports connections between different network types:
   - Cloudflare STUN server (stun.cloudflare.com)
   - Twilio STUN server (global.stun.twilio.com)
   - OpenRelay STUN server (stun.openrelay.metered.ca)
+
+### Remote Server Deployment
+
+The application can be deployed with the signaling server on a public server for improved connectivity:
+
+- **Lightweight Signaling**: The signaling server uses minimal bandwidth and resources
+- **P2P Media Streaming**: Even with a remote signaling server, media streams flow directly between peers
+- **Cross-Network Compatibility**: Solves connectivity issues between different network types
+- **No Port Forwarding Required**: Eliminates the need for port forwarding on home routers
+- **Deployment Options**:
+  ```bash
+  # On your server
+  git clone [repository-url]
+  cd screenshare
+  npm install
+
+  # Run just the signaling server
+  node src/server.js
+
+  # Or use PM2 for persistent operation
+  npm install -g pm2
+  pm2 start src/server.js --name "screenshare-signaling"
+  ```
+
+- **Client Configuration**: Update the signaling server URL in the application:
+  - In `public/renderer.js`: Change `signalingServer` to your server's URL
+  - In `public/viewer.html`: Change `serverUrl` to your server's URL
 
 ## License
 
