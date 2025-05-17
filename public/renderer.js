@@ -50,6 +50,11 @@ let audioMuted = {
   system: false,
   microphone: false
 };
+// Audio processing nodes
+let audioSource = null;
+let systemGainNode = null;
+let microphoneGainNode = null;
+let audioDestination = null;
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', initializeApp);
@@ -145,6 +150,41 @@ function stopCapture() {
 
   // Stop audio visualization
   stopAudioVisualization();
+
+  // Clean up audio processing nodes
+  if (audioSource) {
+    audioSource.disconnect();
+    audioSource = null;
+  }
+
+  if (systemGainNode) {
+    systemGainNode.disconnect();
+    systemGainNode = null;
+  }
+
+  if (microphoneGainNode) {
+    microphoneGainNode.disconnect();
+    microphoneGainNode = null;
+  }
+
+  if (audioDestination) {
+    audioDestination.disconnect();
+    audioDestination = null;
+  }
+
+  if (audioContext) {
+    // Close the audio context
+    try {
+      audioContext.close().then(() => {
+        console.log('Audio context closed');
+        audioContext = null;
+      }).catch(err => {
+        console.error('Error closing audio context:', err);
+      });
+    } catch (error) {
+      console.error('Error closing audio context:', error);
+    }
+  }
 
   // Reset the preview
   previewVideo.srcObject = null;
@@ -409,9 +449,14 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
 
             // Add audio tracks to the stream that's being shared via WebRTC
             if (localStream && webrtcConnection) {
-              console.log('Adding audio tracks to WebRTC stream');
+              console.log('Adding audio tracks to WebRTC stream with audio processing');
 
-              // Create a new stream that combines video from screen capture and audio from microphone
+              // Create audio context if it doesn't exist
+              if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+              }
+
+              // Create a new stream that combines video from screen capture and processed audio
               const combinedStream = new MediaStream();
 
               // Add all video tracks from the screen capture
@@ -419,8 +464,36 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
                 combinedStream.addTrack(track);
               });
 
-              // Add all audio tracks from the audio stream
-              audioStream.getAudioTracks().forEach(track => {
+              // Set up audio processing nodes
+              // Create source from the audio stream
+              audioSource = audioContext.createMediaStreamSource(audioStream);
+
+              // Create gain nodes for volume control
+              systemGainNode = audioContext.createGain();
+              microphoneGainNode = audioContext.createGain();
+
+              // Set initial gain values based on slider positions
+              systemGainNode.gain.value = systemAudioVolumeSlider.value / 100;
+              microphoneGainNode.gain.value = microphoneVolumeSlider.value / 100;
+
+              // Create destination node to output the processed audio
+              audioDestination = audioContext.createMediaStreamDestination();
+
+              // Connect the nodes: source -> gain -> destination
+              audioSource.connect(systemGainNode);
+              systemGainNode.connect(audioDestination);
+
+              // Apply initial mute state if needed
+              if (audioMuted.system) {
+                systemGainNode.gain.value = 0;
+              }
+
+              if (audioMuted.microphone) {
+                microphoneGainNode.gain.value = 0;
+              }
+
+              // Add the processed audio tracks to the combined stream
+              audioDestination.stream.getAudioTracks().forEach(track => {
                 combinedStream.addTrack(track);
               });
 
@@ -565,11 +638,16 @@ function updateSystemAudioVolume() {
   const volume = systemAudioVolumeSlider.value;
   systemAudioVolumeValue.textContent = `${volume}%`;
 
-  if (isCapturing && audioStream) {
-    // Send volume change to main process
+  if (isCapturing && systemGainNode) {
+    // Apply volume change directly to the gain node
+    const normalizedVolume = volume / 100;
+    console.log(`Setting system audio volume to ${normalizedVolume}`);
+    systemGainNode.gain.value = normalizedVolume;
+
+    // Also send to main process for logging
     ipcRenderer.send('set-audio-volume', {
       source: 'system',
-      volume: volume / 100
+      volume: normalizedVolume
     });
   }
 }
@@ -579,11 +657,16 @@ function updateMicrophoneVolume() {
   const volume = microphoneVolumeSlider.value;
   microphoneVolumeValue.textContent = `${volume}%`;
 
-  if (isCapturing && audioStream) {
-    // Send volume change to main process
+  if (isCapturing && microphoneGainNode) {
+    // Apply volume change directly to the gain node
+    const normalizedVolume = volume / 100;
+    console.log(`Setting microphone volume to ${normalizedVolume}`);
+    microphoneGainNode.gain.value = normalizedVolume;
+
+    // Also send to main process for logging
     ipcRenderer.send('set-audio-volume', {
       source: 'microphone',
-      volume: volume / 100
+      volume: normalizedVolume
     });
   }
 }
@@ -591,6 +674,7 @@ function updateMicrophoneVolume() {
 // Toggle audio mute
 function toggleAudioMute(source) {
   const button = source === 'system' ? systemAudioMuteButton : microphoneMuteButton;
+  const gainNode = source === 'system' ? systemGainNode : microphoneGainNode;
 
   // Toggle mute state
   audioMuted[source] = !audioMuted[source];
@@ -598,8 +682,22 @@ function toggleAudioMute(source) {
   // Update button text
   button.textContent = audioMuted[source] ? '🔇' : '🔊';
 
-  if (isCapturing && audioStream) {
-    // Send mute change to main process
+  // Apply mute state directly to the gain node
+  if (isCapturing && gainNode) {
+    if (audioMuted[source]) {
+      // Store the current volume to restore it later
+      gainNode._previousVolume = gainNode.gain.value;
+      // Set volume to 0 (mute)
+      gainNode.gain.value = 0;
+      console.log(`Muting ${source} audio`);
+    } else {
+      // Restore previous volume
+      const previousVolume = gainNode._previousVolume || (source === 'system' ? systemAudioVolumeSlider.value / 100 : microphoneVolumeSlider.value / 100);
+      gainNode.gain.value = previousVolume;
+      console.log(`Unmuting ${source} audio, setting volume to ${previousVolume}`);
+    }
+
+    // Also send to main process for logging
     ipcRenderer.send('toggle-audio-mute', {
       source,
       mute: audioMuted[source]

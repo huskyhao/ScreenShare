@@ -23,7 +23,14 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.6.6 (Current)
+### v0.6.7 (Current)
+- Implemented audio control functionality allowing independent adjustment of system sound and microphone volume
+- Added audio processing nodes (GainNode) for real-time volume control
+- Fixed mute functionality to work correctly
+- Improved audio stream processing and cleanup mechanisms
+- Added detailed audio processing logs for debugging
+
+### v0.6.6
 - Fixed audio sharing issue where system audio wasn't being transmitted to viewers
 - Improved audio stream handling by properly combining video and audio streams
 - Enhanced audio track management in WebRTC connections
