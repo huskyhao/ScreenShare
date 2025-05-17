@@ -33,15 +33,35 @@ io.on('connection', (socket) => {
 
   // Handle stream creation
   socket.on('create-stream', (streamId) => {
+    console.log(`Client ${socket.id} creating stream with ID: ${streamId || 'auto-generated'}`);
+
     // If no streamId is provided, generate one
     if (!streamId) {
       streamId = uuidv4();
+      console.log(`Generated new stream ID: ${streamId}`);
+    }
+
+    // Check if this stream ID already exists
+    if (connections.has(streamId)) {
+      const existingConnection = connections.get(streamId);
+
+      // If the same host is reconnecting, allow it
+      if (existingConnection.hostSocketId === socket.id) {
+        console.log(`Host ${socket.id} is reconnecting to existing stream: ${streamId}`);
+      }
+      // If a different host is trying to use the same ID, generate a new one
+      else {
+        const newStreamId = uuidv4();
+        console.log(`Stream ID ${streamId} already exists with different host. Generated new ID: ${newStreamId}`);
+        streamId = newStreamId;
+      }
     }
 
     // Store the connection
     connections.set(streamId, {
       hostSocketId: socket.id,
       viewers: new Set(),
+      createdAt: new Date().toISOString()
     });
 
     // Join the stream room
@@ -50,15 +70,42 @@ io.on('connection', (socket) => {
     // Send the stream ID to the host
     socket.emit('stream-created', streamId);
 
-    console.log('Stream created:', streamId);
+    console.log(`Stream created: ${streamId}. Total active streams: ${connections.size}`);
+
+    // Log all active streams for debugging
+    if (connections.size > 0) {
+      console.log('Active streams:');
+      for (const [id, conn] of connections.entries()) {
+        console.log(`- Stream ID: ${id}, Host: ${conn.hostSocketId}, Viewers: ${conn.viewers.size}, Created: ${conn.createdAt}`);
+      }
+    }
   });
 
   // Handle stream joining
   socket.on('join-stream', (streamId) => {
+    console.log(`Client ${socket.id} attempting to join stream: ${streamId}`);
+
+    // Check if the streamId is valid
+    if (!streamId) {
+      console.error(`Client ${socket.id} tried to join with invalid streamId`);
+      socket.emit('error', { message: 'Invalid stream ID' });
+      return;
+    }
+
     const connection = connections.get(streamId);
 
     if (!connection) {
+      console.error(`Stream not found: ${streamId}. Available streams: ${Array.from(connections.keys()).join(', ') || 'none'}`);
       socket.emit('error', { message: 'Stream not found' });
+      return;
+    }
+
+    // Check if the host is still connected
+    if (!io.sockets.sockets.has(connection.hostSocketId)) {
+      console.error(`Host ${connection.hostSocketId} for stream ${streamId} is no longer connected`);
+      socket.emit('error', { message: 'Stream host is disconnected' });
+      // Clean up the orphaned stream
+      connections.delete(streamId);
       return;
     }
 
@@ -77,7 +124,7 @@ io.on('connection', (socket) => {
       streamId,
     });
 
-    console.log('Viewer joined stream:', streamId);
+    console.log(`Viewer ${socket.id} joined stream: ${streamId}. Total viewers: ${connection.viewers.size}`);
   });
 
   // Handle WebRTC signaling

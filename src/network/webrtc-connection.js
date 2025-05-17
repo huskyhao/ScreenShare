@@ -59,7 +59,16 @@ class WebRTCConnection {
 
       // Connect to signaling server
       console.log(`Connecting to signaling server at ${signalingServer}...`);
-      this.signaling = io(signalingServer);
+
+      // Configure Socket.IO with more detailed error handling
+      const socketOptions = {
+        reconnectionAttempts: 3,
+        reconnectionDelay: 1000,
+        timeout: 5000,
+        transports: ['websocket', 'polling']
+      };
+
+      this.signaling = io(signalingServer, socketOptions);
 
       // Set up signaling event handlers
       this._setupSignalingEvents();
@@ -74,7 +83,17 @@ class WebRTCConnection {
 
         this.signaling.on('connect_error', (error) => {
           console.error('Failed to connect to signaling server:', error);
-          reject(error);
+          reject(new Error(`Connection error: ${error.message || 'Unknown error'}`));
+        });
+
+        this.signaling.on('connect_timeout', () => {
+          console.error('Connection to signaling server timed out');
+          reject(new Error('Connection to signaling server timed out'));
+        });
+
+        this.signaling.on('error', (error) => {
+          console.error('Socket.IO error:', error);
+          reject(new Error(`Socket.IO error: ${error.message || 'Unknown error'}`));
         });
 
         // Set a timeout for connection
@@ -82,7 +101,7 @@ class WebRTCConnection {
           if (this.connectionState !== 'connected_to_signaling') {
             reject(new Error('Connection to signaling server timed out'));
           }
-        }, 5000);
+        }, 8000);
       });
 
       // If we're the host, create a new stream

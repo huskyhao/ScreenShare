@@ -176,13 +176,26 @@ function stopCapture() {
 function copyConnectionId() {
   if (!connectionId) return;
 
-  navigator.clipboard.writeText(connectionId)
-    .then(() => {
-      alert('Connection ID copied to clipboard!');
-    })
-    .catch(err => {
-      console.error('Failed to copy connection ID:', err);
-    });
+  // Get the port from the signaling server
+  ipcRenderer.send('get-signaling-server-port');
+  ipcRenderer.once('signaling-server-port', (event, port) => {
+    // Create a viewer URL with the connection ID
+    const viewerUrl = `http://localhost:${port}/viewer?id=${connectionId}&autoconnect=true`;
+
+    // Create a message with both the ID and the URL
+    const message = `Connection ID: ${connectionId}\n\nDirect link: ${viewerUrl}`;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(message)
+      .then(() => {
+        alert('Connection ID and direct link copied to clipboard!\n\nShare this with viewers to connect to your stream.');
+      })
+      .catch(err => {
+        console.error('Failed to copy connection info:', err);
+        // Fallback to just copying the ID if the clipboard API fails
+        alert(`Connection ID: ${connectionId}\n\nDirect link: ${viewerUrl}\n\n(Please copy this manually)`);
+      });
+  });
 }
 
 // Generate a random connection ID
@@ -275,14 +288,37 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
 
     // Initialize WebRTC connection
     try {
+      console.log('Creating WebRTC connection...');
       // Create a new WebRTC connection
       webrtcConnection = new WebRTCConnection();
 
-      // Initialize as host
-      const connectionId = await webrtcConnection.initialize({
-        isHost: true,
-        signalingServer: '/'
+      // Set up error event listener before initialization
+      webrtcConnection.on('error', (error) => {
+        console.error('WebRTC error:', error);
+        alert('WebRTC error: ' + (error.message || 'Unknown error'));
       });
+
+      console.log('Initializing WebRTC connection...');
+      // Get the dynamically assigned port from the main process
+      const port = await new Promise((resolve) => {
+        ipcRenderer.once('signaling-server-port', (event, port) => {
+          resolve(port);
+        });
+        ipcRenderer.send('get-signaling-server-port');
+      });
+
+      console.log(`Using signaling server at port: ${port}`);
+
+      // Initialize as host with a timeout
+      const connectionId = await Promise.race([
+        webrtcConnection.initialize({
+          isHost: true,
+          signalingServer: `http://localhost:${port}`  // Use the dynamic port
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Connection timeout - server might not be running')), 10000)
+        )
+      ]);
 
       // Set the connection ID
       connectionIdInput.value = connectionId;
@@ -299,14 +335,20 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
         console.log('Viewer left:', data.viewerId);
       });
 
-      webrtcConnection.on('error', (error) => {
-        console.error('WebRTC error:', error);
-      });
-
       console.log('WebRTC connection initialized with ID:', connectionId);
     } catch (error) {
       console.error('Failed to initialize WebRTC connection:', error);
       alert('Failed to initialize connection: ' + error.message);
+
+      // Clean up if initialization failed
+      if (webrtcConnection) {
+        try {
+          webrtcConnection.shutdown();
+        } catch (e) {
+          console.error('Error shutting down failed WebRTC connection:', e);
+        }
+        webrtcConnection = null;
+      }
     }
 
     // Handle stream ending

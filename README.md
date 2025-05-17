@@ -23,7 +23,17 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.6.4 (Current)
+### v0.6.5 (Current)
+- Fixed "Connection failed: Stream not found" error when connecting to streams
+- Enhanced error handling with detailed troubleshooting tips for users
+- Improved stream management to prevent orphaned streams
+- Added direct link generation for easier stream sharing
+- Added support for connecting via URL parameters (e.g., ?id=streamID&autoconnect=true)
+- Improved logging for better diagnostics
+- Enhanced connection reliability with better host status verification
+- Added auto-connect functionality via URL parameters
+
+### v0.6.4
 - Fixed Socket.IO connection issues with relative URLs
 - Added missing WebRTC methods for handling answers and ICE candidates
 - Improved cross-device compatibility
@@ -136,8 +146,14 @@ npm run server
    - Choose quality preset or customize resolution and frame rate
    - Enable/disable system audio and microphone capture
 3. Click "Start Capture" to begin capturing
-4. Share the generated Connection ID with viewers
-5. Viewers can connect by opening `http://your-ip:3000/viewer` in their browser and entering the Connection ID
+4. Share the generated Connection ID with viewers:
+   - Click "Copy ID" to copy both the Connection ID and a direct link to your clipboard
+   - Share this information with viewers
+5. Viewers can connect in two ways:
+   - By opening the direct link (which automatically connects to your stream)
+   - By opening `http://localhost:3000/viewer` in their browser and entering the Connection ID manually
+
+Note: The direct link includes the stream ID and auto-connect parameters for a seamless viewing experience.
 
 ### Viewer Features
 

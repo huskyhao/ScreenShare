@@ -317,7 +317,7 @@
     </main>
 
     <footer>
-      <p>ScreenShare Viewer v0.6.4 | Powered by WebRTC</p>
+      <p>ScreenShare Viewer v0.6.5 | Powered by WebRTC</p>
     </footer>
   </div>
 
@@ -391,6 +391,23 @@
       } catch (error) {
         console.error('Failed to initialize audio visualizer:', error);
       }
+
+      // Check for connection ID in URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const streamId = urlParams.get('id');
+
+      if (streamId) {
+        console.log('Found stream ID in URL parameters:', streamId);
+        connectionIdInput.value = streamId;
+
+        // Auto-connect if the autoconnect parameter is present
+        if (urlParams.has('autoconnect')) {
+          console.log('Auto-connecting to stream...');
+          setTimeout(() => {
+            connectToStream();
+          }, 500); // Short delay to ensure everything is initialized
+        }
+      }
     }
 
     // Connect to a stream using the provided connection ID
@@ -418,8 +435,28 @@
       try {
         // Connect to signaling server
         updateConnectionStatus('Connecting to signaling server...', 'unknown');
-        // Use relative URL to connect to the same host that serves the page
-        const socket = io('/');
+
+        // Determine the correct server URL
+        // First try to connect to the same host that serves the page
+        // This works when the viewer page is served by the signaling server
+        let serverUrl = '/';
+
+        // If we're accessing the page directly from the file system,
+        // we need to connect to localhost with the correct port
+        if (window.location.protocol === 'file:') {
+          // Default to port 3000, but allow override via URL parameter
+          const urlParams = new URLSearchParams(window.location.search);
+          const port = urlParams.get('port') || '3000';
+          serverUrl = `http://localhost:${port}`;
+          console.log(`Detected file:// protocol, connecting to ${serverUrl}`);
+        }
+
+        console.log(`Connecting to signaling server at: ${serverUrl}`);
+        const socket = io(serverUrl, {
+          reconnectionAttempts: 3,
+          timeout: 10000,
+          transports: ['websocket', 'polling']
+        });
 
         // Wait for connection to signaling server
         await new Promise((resolve, reject) => {
@@ -435,20 +472,24 @@
         updateConnectionStatus('Establishing connection...', 'unknown');
 
         // Join the stream
+        console.log('Attempting to join stream with ID:', connectionId);
         socket.emit('join-stream', connectionId);
 
         // Wait for confirmation or error
         const joinResult = await new Promise((resolve, reject) => {
           socket.once('joined-stream', (streamId) => {
+            console.log('Successfully joined stream with ID:', streamId);
             resolve({ success: true, streamId });
           });
 
           socket.once('error', (error) => {
+            console.error('Error joining stream:', error);
             reject(new Error(error.message || 'Failed to join stream'));
           });
 
           // Set a timeout
           setTimeout(() => {
+            console.error('Stream joining timed out after 5 seconds');
             reject(new Error('Stream joining timed out'));
           }, 5000);
         });
@@ -587,9 +628,44 @@
         console.error('Connection error:', error);
         updateConnectionStatus('Connection failed: ' + error.message, 'poor');
 
-        // Show reconnect button
+        // Prepare a more detailed error message based on the error type
+        let errorMessage = error.message;
+        let troubleshootingTips = '';
+
+        if (error.message.includes('Stream not found')) {
+          errorMessage = 'Stream not found';
+          troubleshootingTips = `
+            <ul style="text-align: left; margin-top: 10px; font-size: 0.9rem;">
+              <li>Check that the connection ID is correct</li>
+              <li>Make sure the host has started streaming</li>
+              <li>The host may need to restart their stream</li>
+              <li>The stream may have ended or timed out</li>
+            </ul>
+          `;
+        } else if (error.message.includes('timed out')) {
+          errorMessage = 'Connection timed out';
+          troubleshootingTips = `
+            <ul style="text-align: left; margin-top: 10px; font-size: 0.9rem;">
+              <li>Check your internet connection</li>
+              <li>The host may be experiencing network issues</li>
+              <li>Try again in a few moments</li>
+            </ul>
+          `;
+        } else if (error.message.includes('host is disconnected')) {
+          errorMessage = 'Stream host is disconnected';
+          troubleshootingTips = `
+            <ul style="text-align: left; margin-top: 10px; font-size: 0.9rem;">
+              <li>The host has disconnected or closed their stream</li>
+              <li>Ask the host to restart their stream</li>
+              <li>You'll need a new connection ID to reconnect</li>
+            </ul>
+          `;
+        }
+
+        // Show reconnect button with more detailed error information
         noVideo.innerHTML = `
-          <p>Failed to connect: ${error.message}</p>
+          <p>Failed to connect: ${errorMessage}</p>
+          ${troubleshootingTips}
           <button id="reconnect-button" class="primary-button" style="margin-top: 15px;">Try Again</button>
         `;
 
