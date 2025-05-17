@@ -32,8 +32,11 @@ io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
 
   // Handle stream creation
-  socket.on('create-stream', () => {
-    const streamId = uuidv4();
+  socket.on('create-stream', (streamId) => {
+    // If no streamId is provided, generate one
+    if (!streamId) {
+      streamId = uuidv4();
+    }
 
     // Store the connection
     connections.set(streamId, {
