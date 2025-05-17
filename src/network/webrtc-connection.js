@@ -367,9 +367,18 @@ class WebRTCConnection {
     // Create a new RTCPeerConnection with STUN and TURN servers
     const peerConnection = new RTCPeerConnection({
       iceServers: [
+        // Google STUN servers (support IPv6/IPv4)
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        // OpenRelay STUN servers (good IPv6/IPv4 interoperability)
+        { urls: 'stun:stun.openrelay.metered.ca:80' },
+        // Twilio STUN servers (reliable and support IPv6/IPv4)
+        { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
+        // Cloudflare STUN servers (good performance and IPv6/IPv4 support)
+        { urls: 'stun:stun.cloudflare.com:3478' },
         // Add TURN servers for NAT traversal (in a real implementation)
         // {
         //   urls: 'turn:turn.example.com:3478',
@@ -384,7 +393,9 @@ class WebRTCConnection {
       certificates: [await RTCPeerConnection.generateCertificate({
         name: 'ECDSA',
         namedCurve: 'P-256'
-      })]
+      })],
+      // Enable IPv6 candidates
+      iceTransportPolicy: 'all'
     });
 
     // Set up event handlers
@@ -833,9 +844,22 @@ class WebRTCConnection {
       if (!this.peerConnections.has(peerId)) {
         const peerConnection = new RTCPeerConnection({
           iceServers: [
+            // Google STUN servers (support IPv6/IPv4)
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            // OpenRelay STUN servers (good IPv6/IPv4 interoperability)
+            { urls: 'stun:stun.openrelay.metered.ca:80' },
+            // Twilio STUN servers (reliable and support IPv6/IPv4)
+            { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
+            // Cloudflare STUN servers (good performance and IPv6/IPv4 support)
+            { urls: 'stun:stun.cloudflare.com:3478' }
+          ],
+          iceCandidatePoolSize: 10,
+          // Enable IPv6 candidates
+          iceTransportPolicy: 'all'
         });
 
         // Set up event handlers

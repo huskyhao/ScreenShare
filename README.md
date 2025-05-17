@@ -23,7 +23,15 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.6.8 (Current)
+### v0.6.9 (Current)
+- Added IPv6/IPv4 interoperability support using multiple public STUN servers
+- Implemented WebRTC configuration for cross-network connectivity
+- Added support for connections between IPv6 and IPv4 networks
+- Enhanced ICE candidate gathering with optimized STUN server selection
+- Improved connection reliability across different network types
+- Added Cloudflare, Twilio, and OpenRelay STUN servers for better connectivity
+
+### v0.6.8
 - Fixed audio balance control between system sound and microphone input
 - Implemented proper audio mixing with independent volume controls for each source
 - Enhanced audio visualization to show mixed audio levels
@@ -209,6 +217,21 @@ The application includes several features to ensure reliable connections:
 - **Automatic Reconnection**: Attempts to reconnect automatically if the connection is lost
 - **Connection Quality Monitoring**: Monitors connection quality and adjusts settings accordingly
 - **Status Feedback**: Provides clear feedback about the current connection state
+- **IPv6/IPv4 Interoperability**: Supports connections between different network types using STUN servers
+
+### IPv6/IPv4 Interoperability
+
+The application supports connections between different network types:
+
+- **Multiple STUN Servers**: Uses a variety of public STUN servers to maximize connectivity
+- **IPv6/IPv4 Translation**: Enables connections between IPv6-only and IPv4-only networks
+- **ICE Candidate Optimization**: Efficiently gathers and prioritizes connection candidates
+- **Network Type Detection**: Automatically adapts to the available network connectivity
+- **Public STUN Servers Used**:
+  - Google STUN servers (stun.l.google.com)
+  - Cloudflare STUN server (stun.cloudflare.com)
+  - Twilio STUN server (global.stun.twilio.com)
+  - OpenRelay STUN server (stun.openrelay.metered.ca)
 
 ## License
 
