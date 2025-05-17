@@ -441,9 +441,13 @@
 
         console.log(`Connecting to signaling server at: ${serverUrl}`);
         const socket = io(serverUrl, {
-          reconnectionAttempts: 3,
-          timeout: 10000,
-          transports: ['websocket', 'polling']
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          timeout: 20000,
+          transports: ['polling', 'websocket'],
+          upgrade: true,
+          forceNew: true,
+          rejectUnauthorized: false
         });
 
         // Wait for connection to signaling server
