@@ -16,14 +16,21 @@ This project is currently in early development. Below is the roadmap:
 
 1. ✅ Project initialization
 2. ✅ Basic screen capture and local preview
-3. ⬜ P2P connection implementation
+3. ✅ P2P connection implementation
 4. ⬜ Video quality control
 5. ⬜ Audio sharing
 6. ⬜ UI optimization and user experience improvements
 
 ## Version History
 
-### v0.2.0 (Current)
+### v0.3.0 (Current)
+- Added improved error handling with Winston logger
+- Enhanced WebRTC connection reliability with Socket.io client
+- Added support for reconnection to signaling server
+- Improved P2P connection stability with better ICE candidate handling
+- Added connection quality monitoring
+
+### v0.2.0
 - Enhanced OBS integration with more detailed implementation
 - Improved screen capture with multiple source options (screen, window, game)
 - Added support for different resolutions and frame rates
