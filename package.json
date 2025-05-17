@@ -1,6 +1,6 @@
 {
   "name": "screenshare",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A lightweight screen sharing application for high-quality game streaming",
   "main": "src/main.js",
   "scripts": {
@@ -23,7 +23,8 @@
     "express": "^4.18.2",
     "socket.io": "^4.7.2",
     "uuid": "^9.0.1",
-    "webrtc-adapter": "^8.2.3"
+    "webrtc-adapter": "^8.2.3",
+    "obs-studio-node": "^5.0.0"
   },
   "devDependencies": {
     "electron-builder": "^24.9.1",
