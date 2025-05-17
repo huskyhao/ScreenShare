@@ -146,16 +146,79 @@
       display: flex;
       justify-content: center;
       margin-top: 15px;
+      flex-wrap: wrap;
     }
 
     .control-button {
       background-color: var(--secondary-color);
       color: white;
-      margin: 0 5px;
+      margin: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .control-button:hover {
       background-color: #5a6268;
+    }
+
+    .control-button i {
+      margin-right: 5px;
+    }
+
+    .connection-status {
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-good {
+      background-color: #28a745;
+    }
+
+    .status-warning {
+      background-color: #ffc107;
+    }
+
+    .status-bad {
+      background-color: #dc3545;
+    }
+
+    .connection-stats {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      max-width: 300px;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    .stats-label {
+      margin-right: 10px;
+      font-weight: 500;
     }
 
     .hidden {
@@ -200,11 +263,37 @@
           <p>Connecting to stream...</p>
         </div>
         <video id="remote-video" autoplay></video>
-        
+
+        <div class="connection-status" id="connection-status">
+          <div class="status-indicator" id="status-indicator"></div>
+          <span id="status-text">Connecting...</span>
+        </div>
+
+        <div class="connection-stats hidden" id="connection-stats">
+          <div class="stats-row">
+            <span class="stats-label">Resolution:</span>
+            <span id="stats-resolution">-</span>
+          </div>
+          <div class="stats-row">
+            <span class="stats-label">Bitrate:</span>
+            <span id="stats-bitrate">-</span>
+          </div>
+          <div class="stats-row">
+            <span class="stats-label">Framerate:</span>
+            <span id="stats-framerate">-</span>
+          </div>
+          <div class="stats-row">
+            <span class="stats-label">Latency:</span>
+            <span id="stats-latency">-</span>
+          </div>
+        </div>
+
         <div class="controls">
-          <button id="mute-button" class="control-button">Mute</button>
-          <button id="fullscreen-button" class="control-button">Fullscreen</button>
-          <button id="disconnect-button" class="control-button">Disconnect</button>
+          <button id="mute-button" class="control-button">🔊 Mute</button>
+          <button id="stats-button" class="control-button">📊 Stats</button>
+          <button id="fullscreen-button" class="control-button">⛶ Fullscreen</button>
+          <button id="quality-button" class="control-button">⚙️ Quality</button>
+          <button id="disconnect-button" class="control-button">❌ Disconnect</button>
         </div>
       </div>
     </main>
@@ -223,20 +312,40 @@
     const noVideo = document.getElementById('no-video');
     const remoteVideo = document.getElementById('remote-video');
     const muteButton = document.getElementById('mute-button');
+    const statsButton = document.getElementById('stats-button');
     const fullscreenButton = document.getElementById('fullscreen-button');
+    const qualityButton = document.getElementById('quality-button');
     const disconnectButton = document.getElementById('disconnect-button');
+    const connectionStatus = document.getElementById('connection-status');
+    const statusIndicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+    const connectionStats = document.getElementById('connection-stats');
+    const statsResolution = document.getElementById('stats-resolution');
+    const statsBitrate = document.getElementById('stats-bitrate');
+    const statsFramerate = document.getElementById('stats-framerate');
+    const statsLatency = document.getElementById('stats-latency');
 
     // State variables
     let peerConnection = null;
     let isConnected = false;
     let isMuted = false;
+    let isStatsVisible = false;
+    let connectionQuality = 'unknown'; // unknown, good, fair, poor
+    let statsInterval = null;
+    let reconnectAttempts = 0;
+    let maxReconnectAttempts = 5;
 
     // Event Listeners
     document.addEventListener('DOMContentLoaded', initializeApp);
     connectButton.addEventListener('click', connectToStream);
     muteButton.addEventListener('click', toggleMute);
+    statsButton.addEventListener('click', toggleStats);
     fullscreenButton.addEventListener('click', toggleFullscreen);
+    qualityButton.addEventListener('click', showQualityOptions);
     disconnectButton.addEventListener('click', disconnect);
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', handleKeyboardShortcuts);
 
     // Initialize the application
     function initializeApp() {
@@ -246,82 +355,144 @@
     // Connect to a stream using the provided connection ID
     function connectToStream() {
       const connectionId = connectionIdInput.value.trim();
-      
+
       if (!connectionId) {
         alert('Please enter a valid connection ID');
         return;
       }
-      
+
       console.log('Connecting to stream with ID:', connectionId);
-      
+
       // Show the video container and hide the connection form
       connectionForm.classList.add('hidden');
       videoContainer.classList.remove('hidden');
-      
+
+      // Update connection status
+      updateConnectionStatus('Connecting...', 'unknown');
+
+      // Disable the stats display initially
+      connectionStats.classList.add('hidden');
+      isStatsVisible = false;
+
       // TODO: Implement actual WebRTC connection
       // For now, we'll just simulate a connection
-      
+
+      // Simulate connection process with multiple states
       setTimeout(() => {
-        // Simulate a successful connection
-        noVideo.classList.add('hidden');
-        
-        // Create a dummy video stream
-        const canvas = document.createElement('canvas');
-        canvas.width = 1280;
-        canvas.height = 720;
-        const ctx = canvas.getContext('2d');
-        
-        // Draw something on the canvas
-        setInterval(() => {
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          ctx.fillStyle = '#4a6bff';
-          ctx.font = '48px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('ScreenShare Demo', canvas.width / 2, canvas.height / 2 - 50);
-          
-          ctx.fillStyle = '#ffffff';
-          ctx.font = '24px sans-serif';
-          ctx.fillText('Connected to: ' + connectionId, canvas.width / 2, canvas.height / 2 + 50);
-          
-          const date = new Date();
-          ctx.fillText(date.toLocaleTimeString(), canvas.width / 2, canvas.height / 2 + 100);
-        }, 1000 / 30); // 30 FPS
-        
-        // Create a stream from the canvas
-        const stream = canvas.captureStream(30);
-        
-        // Add an audio track (silent)
-        const audioContext = new AudioContext();
-        const oscillator = audioContext.createOscillator();
-        const destination = audioContext.createMediaStreamDestination();
-        oscillator.connect(destination);
-        oscillator.start();
-        
-        stream.addTrack(destination.stream.getAudioTracks()[0]);
-        
-        // Set the stream as the source for the video element
-        remoteVideo.srcObject = stream;
-        
-        isConnected = true;
-      }, 2000);
+        updateConnectionStatus('Establishing connection...', 'unknown');
+
+        setTimeout(() => {
+          updateConnectionStatus('Negotiating...', 'unknown');
+
+          setTimeout(() => {
+            // Simulate a successful connection
+            noVideo.classList.add('hidden');
+
+            // Create a dummy video stream
+            const canvas = document.createElement('canvas');
+            canvas.width = 1280;
+            canvas.height = 720;
+            const ctx = canvas.getContext('2d');
+
+            // Draw something on the canvas
+            setInterval(() => {
+              ctx.fillStyle = '#000000';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+              ctx.fillStyle = '#4a6bff';
+              ctx.font = '48px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('ScreenShare Demo', canvas.width / 2, canvas.height / 2 - 50);
+
+              ctx.fillStyle = '#ffffff';
+              ctx.font = '24px sans-serif';
+              ctx.fillText('Connected to: ' + connectionId, canvas.width / 2, canvas.height / 2 + 50);
+
+              const date = new Date();
+              ctx.fillText(date.toLocaleTimeString(), canvas.width / 2, canvas.height / 2 + 100);
+            }, 1000 / 30); // 30 FPS
+
+            // Create a stream from the canvas
+            const stream = canvas.captureStream(30);
+
+            // Add an audio track (silent)
+            const audioContext = new AudioContext();
+            const oscillator = audioContext.createOscillator();
+            const destination = audioContext.createMediaStreamDestination();
+            oscillator.connect(destination);
+            oscillator.start();
+
+            stream.addTrack(destination.stream.getAudioTracks()[0]);
+
+            // Set the stream as the source for the video element
+            remoteVideo.srcObject = stream;
+
+            // Update connection status
+            updateConnectionStatus('Connected', 'good');
+
+            isConnected = true;
+
+            // Simulate occasional connection quality changes
+            setInterval(() => {
+              // 10% chance of quality change
+              if (Math.random() < 0.1) {
+                const qualities = ['good', 'fair', 'poor'];
+                const randomQuality = qualities[Math.floor(Math.random() * qualities.length)];
+
+                if (randomQuality !== connectionQuality) {
+                  updateConnectionStatus('Connected', randomQuality);
+
+                  // If quality is poor, show a reconnection message occasionally
+                  if (randomQuality === 'poor' && Math.random() < 0.3) {
+                    setTimeout(() => {
+                      updateConnectionStatus('Connection unstable, reconnecting...', 'poor');
+
+                      // Simulate reconnection
+                      setTimeout(() => {
+                        updateConnectionStatus('Connected', 'good');
+                      }, 2000);
+                    }, 1000);
+                  }
+                }
+              }
+            }, 10000); // Check every 10 seconds
+
+          }, 1000);
+        }, 800);
+      }, 500);
     }
 
     // Toggle audio mute
     function toggleMute() {
       if (!isConnected) return;
-      
+
       isMuted = !isMuted;
       remoteVideo.muted = isMuted;
-      muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
+      muteButton.textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
+    }
+
+    // Toggle stats display
+    function toggleStats() {
+      if (!isConnected) return;
+
+      isStatsVisible = !isStatsVisible;
+      connectionStats.classList.toggle('hidden', !isStatsVisible);
+      statsButton.textContent = isStatsVisible ? '📊 Hide Stats' : '📊 Show Stats';
+
+      // Start or stop the stats collection interval
+      if (isStatsVisible && !statsInterval) {
+        statsInterval = setInterval(updateStats, 1000);
+      } else if (!isStatsVisible && statsInterval) {
+        clearInterval(statsInterval);
+        statsInterval = null;
+      }
     }
 
     // Toggle fullscreen
     function toggleFullscreen() {
       if (!isConnected) return;
-      
+
       if (!document.fullscreenElement) {
         videoContainer.requestFullscreen().catch(err => {
           console.error('Failed to enter fullscreen mode:', err);
@@ -331,26 +502,209 @@
       }
     }
 
+    // Show quality options
+    function showQualityOptions() {
+      if (!isConnected) return;
+
+      // Create a simple dialog for quality options
+      const currentQuality = localStorage.getItem('preferredQuality') || 'auto';
+
+      const quality = prompt(
+        'Select quality:\n1: Auto (recommended)\n2: High (1080p)\n3: Medium (720p)\n4: Low (480p)',
+        currentQuality
+      );
+
+      if (quality) {
+        localStorage.setItem('preferredQuality', quality);
+        updateConnectionStatus('Changing quality...');
+
+        // In a real implementation, we would send a message to the peer
+        // For now, just simulate a quality change
+        setTimeout(() => {
+          updateConnectionStatus('Connected', 'good');
+        }, 1000);
+      }
+    }
+
+    // Handle keyboard shortcuts
+    function handleKeyboardShortcuts(event) {
+      if (!isConnected) return;
+
+      switch (event.key) {
+        case 'm':
+          // Toggle mute
+          toggleMute();
+          break;
+        case 'f':
+          // Toggle fullscreen
+          toggleFullscreen();
+          break;
+        case 's':
+          // Toggle stats
+          toggleStats();
+          break;
+        case 'q':
+          // Show quality options
+          showQualityOptions();
+          break;
+        case 'Escape':
+          // Disconnect if not in fullscreen
+          if (!document.fullscreenElement) {
+            disconnect();
+          }
+          break;
+      }
+    }
+
+    // Update connection status
+    function updateConnectionStatus(message, quality = 'unknown') {
+      statusText.textContent = message;
+      connectionQuality = quality;
+
+      // Update the status indicator
+      statusIndicator.className = 'status-indicator';
+
+      switch (quality) {
+        case 'good':
+          statusIndicator.classList.add('status-good');
+          break;
+        case 'fair':
+          statusIndicator.classList.add('status-warning');
+          break;
+        case 'poor':
+          statusIndicator.classList.add('status-bad');
+          break;
+        default:
+          // No class for unknown
+          break;
+      }
+    }
+
+    // Update connection stats
+    function updateStats() {
+      if (!isConnected || !isStatsVisible) return;
+
+      // In a real implementation, we would get these values from the RTCPeerConnection stats
+      // For now, just simulate some values
+
+      // Get video dimensions
+      const videoWidth = remoteVideo.videoWidth;
+      const videoHeight = remoteVideo.videoHeight;
+      statsResolution.textContent = `${videoWidth}x${videoHeight}`;
+
+      // Simulate bitrate (random fluctuation between 2-5 Mbps)
+      const bitrate = (2 + Math.random() * 3).toFixed(1);
+      statsBitrate.textContent = `${bitrate} Mbps`;
+
+      // Simulate framerate (random fluctuation around 30fps)
+      const framerate = Math.floor(25 + Math.random() * 10);
+      statsFramerate.textContent = `${framerate} fps`;
+
+      // Simulate latency (random fluctuation between 50-150ms)
+      const latency = Math.floor(50 + Math.random() * 100);
+      statsLatency.textContent = `${latency} ms`;
+
+      // Update connection quality based on simulated values
+      let quality = 'good';
+      if (latency > 120 || bitrate < 2.5) {
+        quality = 'poor';
+      } else if (latency > 80 || bitrate < 3.5) {
+        quality = 'fair';
+      }
+
+      // Only update status if quality changed
+      if (quality !== connectionQuality) {
+        updateConnectionStatus('Connected', quality);
+      }
+    }
+
     // Disconnect from the stream
     function disconnect() {
       if (!isConnected) return;
-      
+
       console.log('Disconnecting from stream');
-      
+
+      // Update status
+      updateConnectionStatus('Disconnecting...', 'unknown');
+
       // Reset the video
       remoteVideo.srcObject = null;
-      
-      // Show the connection form and hide the video container
-      connectionForm.classList.remove('hidden');
-      videoContainer.classList.add('hidden');
-      noVideo.classList.remove('hidden');
-      
-      // Reset state
-      isConnected = false;
-      isMuted = false;
-      muteButton.textContent = 'Mute';
-      
-      // TODO: Implement actual WebRTC disconnection
+
+      // Clear any intervals
+      if (statsInterval) {
+        clearInterval(statsInterval);
+        statsInterval = null;
+      }
+
+      // Simulate disconnection process
+      setTimeout(() => {
+        // Show the connection form and hide the video container
+        connectionForm.classList.remove('hidden');
+        videoContainer.classList.add('hidden');
+        noVideo.classList.remove('hidden');
+
+        // Reset state
+        isConnected = false;
+        isMuted = false;
+        isStatsVisible = false;
+        connectionQuality = 'unknown';
+        reconnectAttempts = 0;
+
+        // Reset UI elements
+        muteButton.textContent = '🔊 Mute';
+        statsButton.textContent = '📊 Stats';
+        connectionStats.classList.add('hidden');
+
+        // Clear connection ID input for security
+        connectionIdInput.value = '';
+
+        console.log('Disconnected from stream');
+
+        // TODO: Implement actual WebRTC disconnection
+      }, 500);
+    }
+
+    // Attempt to reconnect to the stream
+    function attemptReconnect() {
+      if (reconnectAttempts >= maxReconnectAttempts) {
+        console.log('Max reconnect attempts reached');
+        updateConnectionStatus('Connection failed', 'poor');
+
+        // Show a reconnect button
+        const reconnectButton = document.createElement('button');
+        reconnectButton.textContent = 'Reconnect';
+        reconnectButton.className = 'primary-button';
+        reconnectButton.style.margin = '10px auto';
+        reconnectButton.style.display = 'block';
+        noVideo.innerHTML = '<p>Connection lost. Please try again.</p>';
+        noVideo.appendChild(reconnectButton);
+
+        reconnectButton.addEventListener('click', () => {
+          // Reset reconnect attempts
+          reconnectAttempts = 0;
+
+          // Try to connect again
+          noVideo.innerHTML = '<p>Connecting to stream...</p>';
+          connectToStream();
+        });
+
+        return;
+      }
+
+      reconnectAttempts++;
+      updateConnectionStatus(`Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`, 'poor');
+
+      // Simulate reconnection attempt
+      setTimeout(() => {
+        // 70% chance of successful reconnection
+        if (Math.random() < 0.7) {
+          updateConnectionStatus('Connected', 'good');
+          reconnectAttempts = 0;
+        } else {
+          // Failed to reconnect, try again
+          attemptReconnect();
+        }
+      }, 1500);
     }
   </script>
 </body>

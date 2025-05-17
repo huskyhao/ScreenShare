@@ -17,14 +17,23 @@ This project is currently in early development. Below is the roadmap:
 1. ✅ Project initialization
 2. ✅ Basic screen capture and local preview
 3. ✅ P2P connection implementation
-4. ⬜ Video quality control
+4. ✅ Video quality control
 5. ⬜ Audio sharing
-6. ⬜ UI optimization and user experience improvements
+6. ✅ UI optimization and user experience improvements
 
 ## Version History
 
-### v0.3.0 (Current)
-- Added improved error handling with Winston logger
+### v0.4.0 (Current)
+- Enhanced viewer UI with connection status indicators
+- Added real-time connection quality monitoring
+- Implemented automatic reconnection for dropped connections
+- Added connection statistics display (resolution, bitrate, framerate, latency)
+- Added keyboard shortcuts for common actions
+- Improved user feedback during connection process
+- Added quality selection options
+
+### v0.3.0
+- Added improved error handling with simple logger
 - Enhanced WebRTC connection reliability with Socket.io client
 - Added support for reconnection to signaling server
 - Improved P2P connection stability with better ICE candidate handling
@@ -87,6 +96,28 @@ npm run server
 3. Click "Start Capture" to begin capturing
 4. Share the generated Connection ID with viewers
 5. Viewers can connect by opening `http://your-ip:3000/viewer` in their browser and entering the Connection ID
+
+### Viewer Features
+
+The viewer interface includes several features to enhance the viewing experience:
+
+- **Connection Status Indicator**: Shows the current connection quality (good, fair, poor)
+- **Statistics Display**: Shows resolution, bitrate, framerate, and latency information
+- **Quality Selection**: Allows viewers to adjust the stream quality based on their connection
+- **Keyboard Shortcuts**:
+  - `M`: Toggle mute
+  - `F`: Toggle fullscreen
+  - `S`: Toggle statistics display
+  - `Q`: Show quality options
+  - `Esc`: Disconnect (when not in fullscreen)
+
+### Connection Reliability
+
+The application includes several features to ensure reliable connections:
+
+- **Automatic Reconnection**: Attempts to reconnect automatically if the connection is lost
+- **Connection Quality Monitoring**: Monitors connection quality and adjusts settings accordingly
+- **Status Feedback**: Provides clear feedback about the current connection state
 
 ## License
 
