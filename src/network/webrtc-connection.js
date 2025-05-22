@@ -379,7 +379,7 @@ class WebRTCConnection {
         // OpenRelay STUN servers (good IPv6/IPv4 interoperability)
         { urls: 'stun:stun.openrelay.metered.ca:80' },
         // Twilio STUN servers (reliable and support IPv6/IPv4)
-        { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
+        { urls: 'stun:global.stun.twilio.com:3478' },
         // Cloudflare STUN servers (good performance and IPv6/IPv4 support)
         { urls: 'stun:stun.cloudflare.com:3478' },
         // Add TURN servers for NAT traversal (in a real implementation)
@@ -856,7 +856,7 @@ class WebRTCConnection {
             // OpenRelay STUN servers (good IPv6/IPv4 interoperability)
             { urls: 'stun:stun.openrelay.metered.ca:80' },
             // Twilio STUN servers (reliable and support IPv6/IPv4)
-            { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
+            { urls: 'stun:global.stun.twilio.com:3478' },
             // Cloudflare STUN servers (good performance and IPv6/IPv4 support)
             { urls: 'stun:stun.cloudflare.com:3478' }
           ],

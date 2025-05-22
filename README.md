@@ -23,7 +23,13 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.7.0 (Current)
+### v0.7.1 (Current)
+- Fixed STUN server URL format error that caused RTCPeerConnection construction to fail
+- Removed invalid query parameter from Twilio STUN server URL
+- Corrected STUN URL format to comply with WebRTC standards
+- Improved connection reliability by fixing malformed STUN server configuration
+
+### v0.7.0
 - Added support for hosting the signaling server on a public server
 - Modified client code to connect to remote signaling server
 - Updated connection sharing to use the public server URL
