@@ -26,8 +26,6 @@ class WebRTCConnection {
     this.connectionId = null;
     this.isHost = false; // Whether this client is the host or a viewer
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
-    this.reconnectInterval = 2000; // 2 seconds
     this.connectionState = 'disconnected';
     this.eventListeners = new Map(); // Event listeners for custom events
     this.stats = {
@@ -40,6 +38,25 @@ class WebRTCConnection {
       jitter: 0
     };
     this.statsInterval = null;
+
+    // Load connection configuration
+    this.connectionConfig = configManager.getConnectionConfig();
+    this.maxReconnectAttempts = this.connectionConfig.maxReconnectAttempts;
+    this.reconnectInterval = this.connectionConfig.reconnectInterval;
+    this.connectionTimeout = this.connectionConfig.connectionTimeout;
+
+    // Connection quality monitoring
+    this.qualityCheckInterval = null;
+    this.lastQualityCheck = Date.now();
+    this.connectionQuality = 'unknown';
+
+    // ICE gathering state tracking
+    this.iceGatheringComplete = new Map(); // Map of peer ID to boolean
+    this.iceGatheringTimeouts = new Map(); // Map of peer ID to timeout
+
+    // Enhanced error handling
+    this.connectionErrors = new Map(); // Map of peer ID to error count
+    this.lastConnectionAttempt = new Map(); // Map of peer ID to timestamp
   }
 
   /**
@@ -61,15 +78,21 @@ class WebRTCConnection {
       // Connect to signaling server
       console.log(`Connecting to signaling server at ${signalingServer}...`);
 
-      // Configure Socket.IO with more detailed error handling
+      // Configure Socket.IO with enhanced connection settings
       const socketOptions = {
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 20000,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: this.reconnectInterval,
+        timeout: this.connectionTimeout,
         transports: ['polling', 'websocket'],
         upgrade: true,
         forceNew: true,
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+        // Additional options for better reliability
+        randomizationFactor: 0.5,
+        reconnectionDelayMax: 5000,
+        maxReconnectionAttempts: this.maxReconnectAttempts,
+        pingTimeout: 60000,
+        pingInterval: 25000
       };
 
       this.signaling = io(signalingServer, socketOptions);
@@ -368,32 +391,54 @@ class WebRTCConnection {
   async _createPeerConnection(peerId) {
     console.log('Creating new peer connection for:', peerId);
 
-    // Create a new RTCPeerConnection with configuration from config file
-    const webrtcConfig = configManager.getWebRTCConfig();
-    const peerConnection = new RTCPeerConnection({
-      ...webrtcConfig,
-      // Enable DTLS for secure connections
-      certificates: [await RTCPeerConnection.generateCertificate({
-        name: 'ECDSA',
-        namedCurve: 'P-256'
-      })]
-    });
+    try {
+      // Create a new RTCPeerConnection with enhanced configuration
+      const webrtcConfig = configManager.getWebRTCConfig();
+      console.log('Using WebRTC config:', JSON.stringify(webrtcConfig, null, 2));
 
-    // Set up event handlers
-    this._setupPeerConnectionEvents(peerConnection, peerId);
+      const peerConnection = new RTCPeerConnection({
+        ...webrtcConfig,
+        // Enable DTLS for secure connections
+        certificates: [await RTCPeerConnection.generateCertificate({
+          name: 'ECDSA',
+          namedCurve: 'P-256'
+        })]
+      });
 
-    // Add the local stream if available
-    if (this.localStream) {
-      this._addStreamToPeer(peerConnection, peerId);
+      // Set up event handlers
+      this._setupPeerConnectionEvents(peerConnection, peerId);
+
+      // Add the local stream if available
+      if (this.localStream) {
+        this._addStreamToPeer(peerConnection, peerId);
+      }
+
+      // Store the connection
+      this.peerConnections.set(peerId, peerConnection);
+
+      // Initialize pending candidates array
+      this.pendingCandidates.set(peerId, []);
+
+      // Initialize ICE gathering tracking
+      this.iceGatheringComplete.set(peerId, false);
+      this.connectionErrors.set(peerId, 0);
+      this.lastConnectionAttempt.set(peerId, Date.now());
+
+      // Set up ICE gathering timeout
+      const iceTimeout = setTimeout(() => {
+        if (!this.iceGatheringComplete.get(peerId)) {
+          console.warn(`ICE gathering timeout for peer ${peerId}`);
+          this.iceGatheringComplete.set(peerId, true);
+        }
+      }, webrtcConfig.iceGatheringTimeout || 10000);
+
+      this.iceGatheringTimeouts.set(peerId, iceTimeout);
+
+      return peerConnection;
+    } catch (error) {
+      console.error('Failed to create peer connection:', error);
+      throw error;
     }
-
-    // Store the connection
-    this.peerConnections.set(peerId, peerConnection);
-
-    // Initialize pending candidates array
-    this.pendingCandidates.set(peerId, []);
-
-    return peerConnection;
   }
 
   /**
@@ -550,20 +595,30 @@ class WebRTCConnection {
     try {
       console.log('Shutting down WebRTC connections...');
 
-      // Close all peer connections
-      for (const [peerId, connection] of this.peerConnections.entries()) {
-        connection.close();
+      // Clean up all peer connections properly
+      for (const [peerId] of this.peerConnections.entries()) {
+        this._cleanupPeerConnection(peerId);
       }
 
       // Clear all collections
       this.peerConnections.clear();
       this.dataChannels.clear();
       this.pendingCandidates.clear();
+      this.iceGatheringComplete.clear();
+      this.iceGatheringTimeouts.clear();
+      this.connectionErrors.clear();
+      this.lastConnectionAttempt.clear();
 
       // Stop stats collection
       if (this.statsInterval) {
         clearInterval(this.statsInterval);
         this.statsInterval = null;
+      }
+
+      // Stop quality monitoring
+      if (this.qualityCheckInterval) {
+        clearInterval(this.qualityCheckInterval);
+        this.qualityCheckInterval = null;
       }
 
       // Disconnect from signaling server
@@ -582,6 +637,7 @@ class WebRTCConnection {
       this.connectionId = null;
       this.connectionState = 'disconnected';
       this.reconnectAttempts = 0;
+      this.connectionQuality = 'unknown';
 
       console.log('WebRTC connections shut down successfully');
     } catch (error) {
@@ -696,13 +752,87 @@ class WebRTCConnection {
       const peerConnection = this.peerConnections.get(peerId);
       peerConnection.close();
 
-      this.peerConnections.delete(peerId);
+      this._cleanupPeerConnection(peerId);
 
       // TODO: Notify the signaling server
     } catch (error) {
       console.error('Failed to disconnect from peer:', error);
       throw error;
     }
+  }
+
+  /**
+   * Handle connection issues and attempt recovery
+   * @param {string} peerId - The peer's connection ID
+   * @param {string} issue - The type of issue ('disconnected', 'failed', etc.)
+   * @private
+   */
+  _handleConnectionIssue(peerId, issue) {
+    console.log(`Handling connection issue for peer ${peerId}: ${issue}`);
+
+    // Increment error count
+    const errorCount = (this.connectionErrors.get(peerId) || 0) + 1;
+    this.connectionErrors.set(peerId, errorCount);
+
+    // Check if we should attempt reconnection
+    const timeSinceLastAttempt = Date.now() - (this.lastConnectionAttempt.get(peerId) || 0);
+    const shouldReconnect = errorCount <= 3 && timeSinceLastAttempt > 5000; // Max 3 attempts, 5s apart
+
+    if (shouldReconnect && this.isHost) {
+      console.log(`Attempting to reconnect to peer ${peerId} (attempt ${errorCount})`);
+      this.lastConnectionAttempt.set(peerId, Date.now());
+
+      // Clean up the failed connection
+      this._cleanupPeerConnection(peerId);
+
+      // Attempt reconnection after a delay
+      setTimeout(() => {
+        this.connectToPeer(peerId).catch(error => {
+          console.error(`Reconnection attempt failed for peer ${peerId}:`, error);
+        });
+      }, 2000);
+    } else {
+      console.log(`Not attempting reconnection for peer ${peerId} (errors: ${errorCount}, time: ${timeSinceLastAttempt}ms)`);
+      this._emitEvent('connection-failed', { peerId, issue, errorCount });
+    }
+  }
+
+  /**
+   * Clean up resources for a peer connection
+   * @param {string} peerId - The peer's connection ID
+   * @private
+   */
+  _cleanupPeerConnection(peerId) {
+    console.log('Cleaning up peer connection for:', peerId);
+
+    // Remove from peer connections map
+    this.peerConnections.delete(peerId);
+
+    // Clean up data channel
+    if (this.dataChannels.has(peerId)) {
+      const dataChannel = this.dataChannels.get(peerId);
+      if (dataChannel.readyState === 'open') {
+        dataChannel.close();
+      }
+      this.dataChannels.delete(peerId);
+    }
+
+    // Clean up pending candidates
+    this.pendingCandidates.delete(peerId);
+
+    // Clean up ICE gathering tracking
+    this.iceGatheringComplete.delete(peerId);
+
+    // Clear ICE gathering timeout
+    const timeout = this.iceGatheringTimeouts.get(peerId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.iceGatheringTimeouts.delete(peerId);
+    }
+
+    // Clean up error tracking
+    this.connectionErrors.delete(peerId);
+    this.lastConnectionAttempt.delete(peerId);
   }
 
 
@@ -717,7 +847,7 @@ class WebRTCConnection {
     // ICE candidate event
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('New ICE candidate for peer:', peerId);
+        console.log('New ICE candidate for peer:', peerId, 'type:', event.candidate.type);
 
         // Send the ICE candidate to the peer via the signaling server
         if (this.signaling) {
@@ -729,6 +859,42 @@ class WebRTCConnection {
         } else {
           console.error('No signaling connection available to send ICE candidate');
         }
+      } else {
+        // ICE gathering complete
+        console.log('ICE gathering complete for peer:', peerId);
+        this.iceGatheringComplete.set(peerId, true);
+
+        // Clear the timeout
+        const timeout = this.iceGatheringTimeouts.get(peerId);
+        if (timeout) {
+          clearTimeout(timeout);
+          this.iceGatheringTimeouts.delete(peerId);
+        }
+      }
+    };
+
+    // ICE connection state change event
+    peerConnection.oniceconnectionstatechange = () => {
+      console.log('ICE connection state changed for peer:', peerId, peerConnection.iceConnectionState);
+
+      switch (peerConnection.iceConnectionState) {
+        case 'connected':
+        case 'completed':
+          console.log('ICE connection established for peer:', peerId);
+          this.connectionErrors.set(peerId, 0); // Reset error count
+          break;
+        case 'disconnected':
+          console.warn('ICE connection disconnected for peer:', peerId);
+          this._handleConnectionIssue(peerId, 'disconnected');
+          break;
+        case 'failed':
+          console.error('ICE connection failed for peer:', peerId);
+          this._handleConnectionIssue(peerId, 'failed');
+          break;
+        case 'closed':
+          console.log('ICE connection closed for peer:', peerId);
+          this._cleanupPeerConnection(peerId);
+          break;
       }
     };
 
@@ -736,10 +902,24 @@ class WebRTCConnection {
     peerConnection.onconnectionstatechange = () => {
       console.log('Connection state changed for peer:', peerId, peerConnection.connectionState);
 
-      if (peerConnection.connectionState === 'disconnected' ||
-          peerConnection.connectionState === 'failed' ||
-          peerConnection.connectionState === 'closed') {
-        this.peerConnections.delete(peerId);
+      switch (peerConnection.connectionState) {
+        case 'connected':
+          console.log('Peer connection established for:', peerId);
+          this._emitEvent('peer-connected', { peerId });
+          break;
+        case 'disconnected':
+          console.warn('Peer connection disconnected for:', peerId);
+          this._emitEvent('peer-disconnected', { peerId });
+          break;
+        case 'failed':
+          console.error('Peer connection failed for:', peerId);
+          this._emitEvent('peer-failed', { peerId });
+          this._handleConnectionIssue(peerId, 'failed');
+          break;
+        case 'closed':
+          console.log('Peer connection closed for:', peerId);
+          this._cleanupPeerConnection(peerId);
+          break;
       }
     };
 
@@ -761,6 +941,29 @@ class WebRTCConnection {
           stream: event.streams[0]
         });
       }
+    };
+
+    // Data channel event (when the peer creates a data channel)
+    peerConnection.ondatachannel = (event) => {
+      console.log('Received data channel from peer:', peerId);
+      const dataChannel = event.channel;
+
+      dataChannel.onopen = () => {
+        console.log('Data channel opened with peer:', peerId);
+        this._emitEvent('data-channel-open', { peerId });
+      };
+
+      dataChannel.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('Received message from peer:', peerId, message);
+          this._handleDataChannelMessage(peerId, message);
+        } catch (error) {
+          console.error('Error handling data channel message:', error);
+        }
+      };
+
+      this.dataChannels.set(peerId, dataChannel);
     };
   }
 

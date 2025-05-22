@@ -23,7 +23,17 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.7.2 (Current)
+### v0.7.3 (Current)
+- Fixed DNS resolution issues with STUN servers that caused connection failures
+- Added TURN server support for improved NAT traversal in long-distance connections
+- Enhanced WebRTC configuration with better ICE gathering and connection timeouts
+- Implemented automatic connection recovery and reconnection mechanisms
+- Added comprehensive connection quality monitoring and error handling
+- Improved ICE candidate gathering with multiple reliable STUN/TURN servers
+- Enhanced connection stability for 2000km+ distance P2P connections
+- Added proper cleanup and resource management for failed connections
+
+### v0.7.2
 - Added centralized configuration management system
 - Created `config/server.json` for easy server and STUN server configuration
 - Implemented configuration loading modules for both Node.js and browser environments
@@ -248,11 +258,11 @@ The application supports connections between different network types:
 - **IPv6/IPv4 Translation**: Enables connections between IPv6-only and IPv4-only networks
 - **ICE Candidate Optimization**: Efficiently gathers and prioritizes connection candidates
 - **Network Type Detection**: Automatically adapts to the available network connectivity
-- **Public STUN Servers Used**:
-  - Google STUN servers (stun.l.google.com)
-  - Cloudflare STUN server (stun.cloudflare.com)
-  - Twilio STUN server (global.stun.twilio.com)
-  - OpenRelay STUN server (stun.openrelay.metered.ca)
+- **ICE Servers Used**:
+  - **STUN Servers**: Google (stun.l.google.com), Cloudflare (stun.cloudflare.com), Nextcloud (stun.nextcloud.com), Metered (relay.metered.ca)
+  - **TURN Servers**: OpenRelay free TURN servers (relay.metered.ca, openrelay.metered.ca) for NAT traversal when direct connection fails
+  - **Multiple Transports**: UDP, TCP, and TLS support for maximum compatibility
+  - **Automatic Fallback**: Graceful fallback from STUN to TURN when direct P2P connection fails
 
 ### Configuration Management
 
@@ -275,22 +285,39 @@ The application uses a configuration file system to keep sensitive server inform
        "port": 3000,
        "protocol": "http"
      },
-     "stun": {
+     "ice": {
        "servers": [
          {
            "urls": "stun:stun.l.google.com:19302",
-           "description": "Google STUN server (IPv6/IPv4 support)"
+           "description": "Google STUN server (primary)"
          },
          {
-           "urls": "stun:global.stun.twilio.com:3478",
-           "description": "Twilio STUN server (reliable IPv6/IPv4 support)"
+           "urls": "stun:stun.cloudflare.com:3478",
+           "description": "Cloudflare STUN server (reliable)"
+         },
+         {
+           "urls": ["turn:relay.metered.ca:80", "turn:relay.metered.ca:443"],
+           "username": "openrelayproject",
+           "credential": "openrelayproject",
+           "description": "Free TURN server for NAT traversal"
          }
        ]
      },
      "webrtc": {
-       "iceCandidatePoolSize": 10,
+       "iceCandidatePoolSize": 15,
        "iceTransportPolicy": "all",
-       "sdpSemantics": "unified-plan"
+       "sdpSemantics": "unified-plan",
+       "iceGatheringTimeout": 10000,
+       "iceConnectionTimeout": 30000,
+       "bundlePolicy": "max-bundle",
+       "rtcpMuxPolicy": "require"
+     },
+     "connection": {
+       "maxReconnectAttempts": 10,
+       "reconnectInterval": 2000,
+       "connectionTimeout": 15000,
+       "keepAliveInterval": 30000,
+       "qualityCheckInterval": 5000
      }
    }
    ```
@@ -302,8 +329,9 @@ The application uses a configuration file system to keep sensitive server inform
 - **signaling.host**: IP address or hostname of your signaling server
 - **signaling.port**: Port number for the signaling server (default: 3000)
 - **signaling.protocol**: Protocol to use (http or https)
-- **stun.servers**: Array of STUN servers for NAT traversal
-- **webrtc**: WebRTC-specific configuration options
+- **ice.servers**: Array of ICE servers (STUN and TURN) for NAT traversal
+- **webrtc**: WebRTC-specific configuration options including timeouts and policies
+- **connection**: Connection management settings for reconnection and quality monitoring
 
 #### Updating Configuration
 

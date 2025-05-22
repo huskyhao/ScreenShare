@@ -1,6 +1,6 @@
 /**
  * Configuration Loader for Browser Environment
- * 
+ *
  * This module loads configuration for browser-based components
  * since they cannot directly access Node.js modules.
  */
@@ -43,15 +43,27 @@ class BrowserConfigManager {
         port: 3000,
         protocol: "http"
       },
-      stun: {
+      ice: {
         servers: [
-          { urls: "stun:stun.l.google.com:19302", description: "Google STUN server" }
+          { urls: "stun:stun.l.google.com:19302", description: "Google STUN server (primary)" },
+          { urls: "stun:stun.cloudflare.com:3478", description: "Cloudflare STUN server (reliable)" }
         ]
       },
       webrtc: {
-        iceCandidatePoolSize: 10,
+        iceCandidatePoolSize: 15,
         iceTransportPolicy: "all",
-        sdpSemantics: "unified-plan"
+        sdpSemantics: "unified-plan",
+        iceGatheringTimeout: 10000,
+        iceConnectionTimeout: 30000,
+        bundlePolicy: "max-bundle",
+        rtcpMuxPolicy: "require"
+      },
+      connection: {
+        maxReconnectAttempts: 10,
+        reconnectInterval: 2000,
+        connectionTimeout: 15000,
+        keepAliveInterval: 30000,
+        qualityCheckInterval: 5000
       }
     };
   }
@@ -67,12 +79,30 @@ class BrowserConfigManager {
   }
 
   /**
-   * Get STUN servers configuration
+   * Get ICE servers configuration (STUN and TURN)
+   * @returns {Promise<Array>} Array of ICE server configurations
+   */
+  async getIceServers() {
+    const config = await this.loadConfig();
+    return config.ice.servers.map(server => {
+      const iceServer = { urls: server.urls };
+      if (server.username) iceServer.username = server.username;
+      if (server.credential) iceServer.credential = server.credential;
+      return iceServer;
+    });
+  }
+
+  /**
+   * Get STUN servers configuration (backward compatibility)
    * @returns {Promise<Array>} Array of STUN server configurations
    */
   async getStunServers() {
-    const config = await this.loadConfig();
-    return config.stun.servers.map(server => ({ urls: server.urls }));
+    const iceServers = await this.getIceServers();
+    return iceServers.filter(server =>
+      Array.isArray(server.urls)
+        ? server.urls.some(url => url.startsWith('stun:'))
+        : server.urls.startsWith('stun:')
+    );
   }
 
   /**
@@ -81,11 +111,20 @@ class BrowserConfigManager {
    */
   async getWebRTCConfig() {
     const config = await this.loadConfig();
-    const stunServers = await this.getStunServers();
+    const iceServers = await this.getIceServers();
     return {
-      iceServers: stunServers,
+      iceServers: iceServers,
       ...config.webrtc
     };
+  }
+
+  /**
+   * Get connection configuration
+   * @returns {Promise<Object>} Connection configuration object
+   */
+  async getConnectionConfig() {
+    const config = await this.loadConfig();
+    return config.connection || this.getDefaultConfig().connection;
   }
 }
 

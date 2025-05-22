@@ -1,48 +1,62 @@
 {
   "signaling": {
-    "host": "your-server-ip-or-domain",
+    "host": "localhost",
     "port": 3000,
     "protocol": "http"
   },
-  "stun": {
+  "ice": {
     "servers": [
       {
         "urls": "stun:stun.l.google.com:19302",
-        "description": "Google STUN server (IPv6/IPv4 support)"
-      },
-      {
-        "urls": "stun:stun1.l.google.com:19302",
-        "description": "Google STUN server 1"
-      },
-      {
-        "urls": "stun:stun2.l.google.com:19302",
-        "description": "Google STUN server 2"
-      },
-      {
-        "urls": "stun:stun3.l.google.com:19302",
-        "description": "Google STUN server 3"
-      },
-      {
-        "urls": "stun:stun4.l.google.com:19302",
-        "description": "Google STUN server 4"
-      },
-      {
-        "urls": "stun:stun.openrelay.metered.ca:80",
-        "description": "OpenRelay STUN server (IPv6/IPv4 interoperability)"
-      },
-      {
-        "urls": "stun:global.stun.twilio.com:3478",
-        "description": "Twilio STUN server (reliable IPv6/IPv4 support)"
+        "description": "Google STUN server (primary)"
       },
       {
         "urls": "stun:stun.cloudflare.com:3478",
-        "description": "Cloudflare STUN server (good performance)"
+        "description": "Cloudflare STUN server (reliable)"
+      },
+      {
+        "urls": "stun:stun.nextcloud.com:443",
+        "description": "Nextcloud STUN server (alternative)"
+      },
+      {
+        "urls": "stun:relay.metered.ca:80",
+        "description": "Metered STUN server (backup)"
+      },
+      {
+        "urls": [
+          "turn:relay.metered.ca:80",
+          "turn:relay.metered.ca:443"
+        ],
+        "username": "openrelayproject",
+        "credential": "openrelayproject",
+        "description": "Free TURN server for NAT traversal"
+      },
+      {
+        "urls": [
+          "turn:openrelay.metered.ca:80",
+          "turn:openrelay.metered.ca:443",
+          "turn:openrelay.metered.ca:443?transport=tcp"
+        ],
+        "username": "openrelayproject",
+        "credential": "openrelayproject",
+        "description": "OpenRelay TURN server (multiple transports)"
       }
     ]
   },
   "webrtc": {
-    "iceCandidatePoolSize": 10,
+    "iceCandidatePoolSize": 15,
     "iceTransportPolicy": "all",
-    "sdpSemantics": "unified-plan"
+    "sdpSemantics": "unified-plan",
+    "iceGatheringTimeout": 10000,
+    "iceConnectionTimeout": 30000,
+    "bundlePolicy": "max-bundle",
+    "rtcpMuxPolicy": "require"
+  },
+  "connection": {
+    "maxReconnectAttempts": 10,
+    "reconnectInterval": 2000,
+    "connectionTimeout": 15000,
+    "keepAliveInterval": 30000,
+    "qualityCheckInterval": 5000
   }
 }
