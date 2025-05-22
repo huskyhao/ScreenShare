@@ -1,6 +1,6 @@
 {
   "signaling": {
-    "host": "123.56.80.178",
+    "host": "your-server-ip-or-domain",
     "port": 3000,
     "protocol": "http"
   },

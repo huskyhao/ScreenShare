@@ -258,36 +258,44 @@ The application supports connections between different network types:
 
 The application uses a centralized configuration system for easy management of server settings and network configuration:
 
-#### Configuration File
+#### Configuration File Setup
 
-All network settings are stored in `config/server.json`:
+The application uses a configuration file system to keep sensitive server information secure:
 
-```json
-{
-  "signaling": {
-    "host": "123.56.80.178",
-    "port": 3000,
-    "protocol": "http"
-  },
-  "stun": {
-    "servers": [
-      {
-        "urls": "stun:stun.l.google.com:19302",
-        "description": "Google STUN server (IPv6/IPv4 support)"
-      },
-      {
-        "urls": "stun:global.stun.twilio.com:3478",
-        "description": "Twilio STUN server (reliable IPv6/IPv4 support)"
-      }
-    ]
-  },
-  "webrtc": {
-    "iceCandidatePoolSize": 10,
-    "iceTransportPolicy": "all",
-    "sdpSemantics": "unified-plan"
-  }
-}
-```
+1. **Copy the example configuration**:
+   ```bash
+   cp config/server.example.json config/server.json
+   ```
+
+2. **Edit your local configuration**:
+   ```json
+   {
+     "signaling": {
+       "host": "your-server-ip-or-domain",
+       "port": 3000,
+       "protocol": "http"
+     },
+     "stun": {
+       "servers": [
+         {
+           "urls": "stun:stun.l.google.com:19302",
+           "description": "Google STUN server (IPv6/IPv4 support)"
+         },
+         {
+           "urls": "stun:global.stun.twilio.com:3478",
+           "description": "Twilio STUN server (reliable IPv6/IPv4 support)"
+         }
+       ]
+     },
+     "webrtc": {
+       "iceCandidatePoolSize": 10,
+       "iceTransportPolicy": "all",
+       "sdpSemantics": "unified-plan"
+     }
+   }
+   ```
+
+**Important**: The `config/server.json` file is automatically ignored by git to protect your server IP address. Only the example template is tracked in version control.
 
 #### Configuration Options
 

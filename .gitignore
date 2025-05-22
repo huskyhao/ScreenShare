@@ -33,3 +33,12 @@ logs/
 
 # Testing
 coverage/
+
+# Configuration files with sensitive information
+config/server.json
+config/local.json
+*.local.json
+
+# Temporary files
+*.tmp
+*.temp
