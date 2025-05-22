@@ -321,28 +321,82 @@ The application can be deployed with the signaling server on a public server for
 - **P2P Media Streaming**: Even with a remote signaling server, media streams flow directly between peers
 - **Cross-Network Compatibility**: Solves connectivity issues between different network types
 - **No Port Forwarding Required**: Eliminates the need for port forwarding on home routers
-- **Deployment Options**:
-  ```bash
-  # On your server
-  git clone [repository-url]
-  cd screenshare
-  npm install
 
-  # Update config/server.json with your server's IP address
-  # Edit the "host" field in the signaling section
+#### Initial Server Setup
 
-  # Run just the signaling server
-  node src/server.js
+```bash
+# On your server
+git clone https://github.com/huskyhao/ScreenShare.git
+cd ScreenShare
+npm install
 
-  # Or use PM2 for persistent operation
-  npm install -g pm2
-  pm2 start src/server.js --name "screenshare-signaling"
-  ```
+# Copy and configure server settings
+cp config/server.example.json config/server.json
+nano config/server.json  # Edit with your server's IP address
 
-- **Client Configuration**: Simply update `config/server.json` with your server's details:
-  - Change `signaling.host` to your server's IP address or domain
-  - Update `signaling.port` if using a different port
-  - Modify `signaling.protocol` to "https" if using SSL
+# Install PM2 for process management
+npm install -g pm2
+
+# Start the signaling server
+pm2 start src/server.js --name "screenshare-signaling"
+pm2 save
+pm2 startup  # Follow the instructions to enable auto-start
+```
+
+#### Updating Server Code
+
+When new updates are available, use the provided update scripts:
+
+```bash
+# Make the update script executable (first time only)
+chmod +x scripts/quick-update.sh
+
+# Run the quick update
+./scripts/quick-update.sh
+
+# Or use the detailed update script
+chmod +x scripts/update-server.sh
+./scripts/update-server.sh
+```
+
+**Manual Update Process:**
+```bash
+# 1. Backup configuration
+cp config/server.json config/server.json.backup
+
+# 2. Stop service
+pm2 stop screenshare-signaling
+
+# 3. Pull latest changes
+git pull origin master
+
+# 4. Install dependencies
+npm install
+
+# 5. Restore configuration (if needed)
+cp config/server.json.backup config/server.json
+
+# 6. Restart service
+pm2 start screenshare-signaling
+
+# 7. Verify status
+pm2 status
+pm2 logs screenshare-signaling
+```
+
+#### Client Configuration
+
+Simply update `config/server.json` with your server's details:
+- Change `signaling.host` to your server's IP address or domain
+- Update `signaling.port` if using a different port
+- Modify `signaling.protocol` to "https" if using SSL
+
+#### Security Considerations
+
+- Your `config/server.json` file is automatically ignored by git
+- Server IP addresses remain private when pushing to GitHub
+- Use the provided update scripts to safely pull new changes
+- Always backup your configuration before updating
 
 ## License
 
