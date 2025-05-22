@@ -1,6 +1,7 @@
 // Import required Electron modules
 const { ipcRenderer } = require('electron');
 const WebRTCConnection = require('../src/network/webrtc-connection');
+const configManager = require('../src/utils/config');
 
 // DOM Elements
 const captureSourceSelect = document.getElementById('capture-source');
@@ -224,8 +225,9 @@ function stopCapture() {
 function copyConnectionId() {
   if (!connectionId) return;
 
-  // Create a viewer URL with the connection ID using your server IP
-  const viewerUrl = `http://123.56.80.178:3000/viewer?id=${connectionId}&autoconnect=true`;
+  // Get server URL from configuration
+  const serverUrl = configManager.getSignalingServerUrl();
+  const viewerUrl = `${serverUrl}/viewer?id=${connectionId}&autoconnect=true`;
 
   // Create a message with both the ID and the URL
   const message = `Connection ID: ${connectionId}\n\nDirect link: ${viewerUrl}`;
@@ -357,7 +359,7 @@ ipcRenderer.on('capture-sources', async (event, sources) => {
       const connectionId = await Promise.race([
         webrtcConnection.initialize({
           isHost: true,
-          signalingServer: `http://123.56.80.178:3000`  // Use your actual server IP and port
+          signalingServer: configManager.getSignalingServerUrl()
         }),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Connection timeout - server might not be running')), 10000)

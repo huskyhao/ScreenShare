@@ -14,6 +14,7 @@
 
 const io = require('socket.io-client');
 const adapter = require('webrtc-adapter');
+const configManager = require('../utils/config');
 
 class WebRTCConnection {
   constructor() {
@@ -367,38 +368,15 @@ class WebRTCConnection {
   async _createPeerConnection(peerId) {
     console.log('Creating new peer connection for:', peerId);
 
-    // Create a new RTCPeerConnection with STUN and TURN servers
+    // Create a new RTCPeerConnection with configuration from config file
+    const webrtcConfig = configManager.getWebRTCConfig();
     const peerConnection = new RTCPeerConnection({
-      iceServers: [
-        // Google STUN servers (support IPv6/IPv4)
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-        // OpenRelay STUN servers (good IPv6/IPv4 interoperability)
-        { urls: 'stun:stun.openrelay.metered.ca:80' },
-        // Twilio STUN servers (reliable and support IPv6/IPv4)
-        { urls: 'stun:global.stun.twilio.com:3478' },
-        // Cloudflare STUN servers (good performance and IPv6/IPv4 support)
-        { urls: 'stun:stun.cloudflare.com:3478' },
-        // Add TURN servers for NAT traversal (in a real implementation)
-        // {
-        //   urls: 'turn:turn.example.com:3478',
-        //   username: 'username',
-        //   credential: 'password'
-        // }
-      ],
-      iceCandidatePoolSize: 10,
-      // Enable bandwidth estimation
-      sdpSemantics: 'unified-plan',
+      ...webrtcConfig,
       // Enable DTLS for secure connections
       certificates: [await RTCPeerConnection.generateCertificate({
         name: 'ECDSA',
         namedCurve: 'P-256'
-      })],
-      // Enable IPv6 candidates
-      iceTransportPolicy: 'all'
+      })]
     });
 
     // Set up event handlers
@@ -845,25 +823,8 @@ class WebRTCConnection {
 
       // Create a new RTCPeerConnection if it doesn't exist
       if (!this.peerConnections.has(peerId)) {
-        const peerConnection = new RTCPeerConnection({
-          iceServers: [
-            // Google STUN servers (support IPv6/IPv4)
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' },
-            // OpenRelay STUN servers (good IPv6/IPv4 interoperability)
-            { urls: 'stun:stun.openrelay.metered.ca:80' },
-            // Twilio STUN servers (reliable and support IPv6/IPv4)
-            { urls: 'stun:global.stun.twilio.com:3478' },
-            // Cloudflare STUN servers (good performance and IPv6/IPv4 support)
-            { urls: 'stun:stun.cloudflare.com:3478' }
-          ],
-          iceCandidatePoolSize: 10,
-          // Enable IPv6 candidates
-          iceTransportPolicy: 'all'
-        });
+        const webrtcConfig = configManager.getWebRTCConfig();
+        const peerConnection = new RTCPeerConnection(webrtcConfig);
 
         // Set up event handlers
         this._setupPeerConnectionEvents(peerConnection, peerId);

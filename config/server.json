@@ -1,0 +1,48 @@
+{
+  "signaling": {
+    "host": "123.56.80.178",
+    "port": 3000,
+    "protocol": "http"
+  },
+  "stun": {
+    "servers": [
+      {
+        "urls": "stun:stun.l.google.com:19302",
+        "description": "Google STUN server (IPv6/IPv4 support)"
+      },
+      {
+        "urls": "stun:stun1.l.google.com:19302",
+        "description": "Google STUN server 1"
+      },
+      {
+        "urls": "stun:stun2.l.google.com:19302",
+        "description": "Google STUN server 2"
+      },
+      {
+        "urls": "stun:stun3.l.google.com:19302",
+        "description": "Google STUN server 3"
+      },
+      {
+        "urls": "stun:stun4.l.google.com:19302",
+        "description": "Google STUN server 4"
+      },
+      {
+        "urls": "stun:stun.openrelay.metered.ca:80",
+        "description": "OpenRelay STUN server (IPv6/IPv4 interoperability)"
+      },
+      {
+        "urls": "stun:global.stun.twilio.com:3478",
+        "description": "Twilio STUN server (reliable IPv6/IPv4 support)"
+      },
+      {
+        "urls": "stun:stun.cloudflare.com:3478",
+        "description": "Cloudflare STUN server (good performance)"
+      }
+    ]
+  },
+  "webrtc": {
+    "iceCandidatePoolSize": 10,
+    "iceTransportPolicy": "all",
+    "sdpSemantics": "unified-plan"
+  }
+}

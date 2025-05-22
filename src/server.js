@@ -10,6 +10,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const configManager = require('./utils/config');
 
 // Create Express app and HTTP server
 const app = express();
@@ -22,6 +23,17 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Serve the viewer page
 app.get('/viewer', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/viewer.html'));
+});
+
+// Serve configuration
+app.get('/config', (req, res) => {
+  try {
+    const config = configManager.loadConfig();
+    res.json(config);
+  } catch (error) {
+    console.error('Error serving config:', error);
+    res.status(500).json({ error: 'Failed to load configuration' });
+  }
 });
 
 // Store active connections

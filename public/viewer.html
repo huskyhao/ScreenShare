@@ -322,6 +322,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="config-loader.js"></script>
   <script>
     // DOM Elements
     const connectionForm = document.getElementById('connection-form');
@@ -360,6 +361,7 @@
     let audioAnalyser = null;
     let audioVisualizationData = null;
     let visualizationInterval = null;
+    let configManager = new BrowserConfigManager();
 
     // Event Listeners
     document.addEventListener('DOMContentLoaded', initializeApp);
@@ -436,8 +438,8 @@
         // Connect to signaling server
         updateConnectionStatus('Connecting to signaling server...', 'unknown');
 
-        // Use your server IP for signaling
-        let serverUrl = 'http://123.56.80.178:3000';
+        // Get server URL from configuration
+        const serverUrl = await configManager.getSignalingServerUrl();
 
         console.log(`Connecting to signaling server at: ${serverUrl}`);
         const socket = io(serverUrl, {
@@ -504,26 +506,9 @@
 
         updateConnectionStatus('Negotiating connection...', 'unknown');
 
-        // Create peer connection with STUN servers for IPv6/IPv4 interoperability
-        peerConnection = new RTCPeerConnection({
-          iceServers: [
-            // Google STUN servers (support IPv6/IPv4)
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' },
-            // OpenRelay STUN servers (good IPv6/IPv4 interoperability)
-            { urls: 'stun:stun.openrelay.metered.ca:80' },
-            // Twilio STUN servers (reliable and support IPv6/IPv4)
-            { urls: 'stun:global.stun.twilio.com:3478' },
-            // Cloudflare STUN servers (good performance and IPv6/IPv4 support)
-            { urls: 'stun:stun.cloudflare.com:3478' }
-          ],
-          iceCandidatePoolSize: 10,
-          // Enable IPv6 candidates
-          iceTransportPolicy: 'all'
-        });
+        // Create peer connection with configuration from config file
+        const webrtcConfig = await configManager.getWebRTCConfig();
+        peerConnection = new RTCPeerConnection(webrtcConfig);
 
         // Set up event handlers
         peerConnection.ontrack = (event) => {

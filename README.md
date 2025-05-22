@@ -23,7 +23,15 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.7.1 (Current)
+### v0.7.2 (Current)
+- Added centralized configuration management system
+- Created `config/server.json` for easy server and STUN server configuration
+- Implemented configuration loading modules for both Node.js and browser environments
+- Replaced hardcoded server URLs with configurable settings
+- Added `/config` API endpoint for browser-based configuration loading
+- Improved maintainability by eliminating hardcoded network settings
+
+### v0.7.1
 - Fixed STUN server URL format error that caused RTCPeerConnection construction to fail
 - Removed invalid query parameter from Twilio STUN server URL
 - Corrected STUN URL format to comply with WebRTC standards
@@ -246,6 +254,57 @@ The application supports connections between different network types:
   - Twilio STUN server (global.stun.twilio.com)
   - OpenRelay STUN server (stun.openrelay.metered.ca)
 
+### Configuration Management
+
+The application uses a centralized configuration system for easy management of server settings and network configuration:
+
+#### Configuration File
+
+All network settings are stored in `config/server.json`:
+
+```json
+{
+  "signaling": {
+    "host": "123.56.80.178",
+    "port": 3000,
+    "protocol": "http"
+  },
+  "stun": {
+    "servers": [
+      {
+        "urls": "stun:stun.l.google.com:19302",
+        "description": "Google STUN server (IPv6/IPv4 support)"
+      },
+      {
+        "urls": "stun:global.stun.twilio.com:3478",
+        "description": "Twilio STUN server (reliable IPv6/IPv4 support)"
+      }
+    ]
+  },
+  "webrtc": {
+    "iceCandidatePoolSize": 10,
+    "iceTransportPolicy": "all",
+    "sdpSemantics": "unified-plan"
+  }
+}
+```
+
+#### Configuration Options
+
+- **signaling.host**: IP address or hostname of your signaling server
+- **signaling.port**: Port number for the signaling server (default: 3000)
+- **signaling.protocol**: Protocol to use (http or https)
+- **stun.servers**: Array of STUN servers for NAT traversal
+- **webrtc**: WebRTC-specific configuration options
+
+#### Updating Configuration
+
+To change server settings:
+
+1. Edit `config/server.json` with your server details
+2. Restart the application
+3. No code changes required - configuration is loaded automatically
+
 ### Remote Server Deployment
 
 The application can be deployed with the signaling server on a public server for improved connectivity:
@@ -261,6 +320,9 @@ The application can be deployed with the signaling server on a public server for
   cd screenshare
   npm install
 
+  # Update config/server.json with your server's IP address
+  # Edit the "host" field in the signaling section
+
   # Run just the signaling server
   node src/server.js
 
@@ -269,9 +331,10 @@ The application can be deployed with the signaling server on a public server for
   pm2 start src/server.js --name "screenshare-signaling"
   ```
 
-- **Client Configuration**: Update the signaling server URL in the application:
-  - In `public/renderer.js`: Change `signalingServer` to your server's URL
-  - In `public/viewer.html`: Change `serverUrl` to your server's URL
+- **Client Configuration**: Simply update `config/server.json` with your server's details:
+  - Change `signaling.host` to your server's IP address or domain
+  - Update `signaling.port` if using a different port
+  - Modify `signaling.protocol` to "https" if using SSL
 
 ## License
 
