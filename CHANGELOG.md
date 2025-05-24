@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI/CD Docker build failures caused by missing package-lock.json file
 - Updated Dockerfile to use `--omit=dev` instead of deprecated `--only=production` flag
 - Resolved npm ci command compatibility issues with modern npm versions
+- Removed package-lock.json from .gitignore to ensure it's tracked in version control
 
 ### Added
 - Generated package-lock.json file for consistent dependency resolution
 - Improved Docker build reliability and reproducibility
+- Package-lock.json now properly committed to repository for CI/CD workflows
 
 ## [0.8.0] - 2024-12-19
 
