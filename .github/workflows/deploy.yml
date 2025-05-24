@@ -25,16 +25,16 @@ jobs:
     name: Deploy to ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.8.0
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-        
+
     - name: Create backup
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
@@ -44,36 +44,48 @@ jobs:
             cp config/server.json backups/server.json.$(date +%Y%m%d_%H%M%S)
           fi
         '
-        
+
     - name: Deploy application
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
           cd ${{ secrets.SERVER_PATH }} &&
           echo "🚀 Starting deployment..." &&
-          
+
           # Stop service
           pm2 stop screenshare-signaling 2>/dev/null || echo "Service was not running" &&
-          
-          # Pull latest changes
-          git fetch origin &&
-          git pull origin master &&
-          
+          pm2 delete screenshare-signaling 2>/dev/null || echo "Service was not in PM2" &&
+
+          # Configure git to use SSH instead of HTTPS
+          git config --global url."git@github.com:".insteadOf "https://github.com/" &&
+
+          # Pull latest changes with retry mechanism
+          for i in {1..3}; do
+            echo "Attempt $i: Pulling latest changes..." &&
+            if git fetch origin && git reset --hard origin/master; then
+              echo "✅ Git pull successful"
+              break
+            else
+              echo "⚠️  Git pull failed, retrying in 5 seconds..."
+              sleep 5
+            fi
+          done &&
+
           # Install dependencies
           npm ci --production &&
-          
+
           # Restore configuration if needed
           if [ ! -f config/server.json ] && [ -f config/server.example.json ]; then
             echo "⚠️  No server.json found, using example configuration"
             cp config/server.example.json config/server.json
           fi &&
-          
-          # Start service
-          pm2 start src/server.js --name screenshare-signaling &&
+
+          # Start service with force option
+          pm2 start src/server.js --name screenshare-signaling -f &&
           pm2 save &&
-          
+
           echo "✅ Deployment completed successfully"
         '
-        
+
     - name: Force restart if requested
       if: github.event.inputs.force_restart == 'true'
       run: |
@@ -82,25 +94,25 @@ jobs:
           pm2 restart screenshare-signaling &&
           pm2 save
         '
-        
+
     - name: Verify deployment
       run: |
         echo "🔍 Verifying deployment..."
         sleep 10
-        
+
         # Check if service is running
         ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
           pm2 status screenshare-signaling
         '
-        
+
         # Test HTTP endpoint
         curl -f http://${{ secrets.SERVER_HOST }}:3000/config || {
           echo "❌ Service health check failed"
           exit 1
         }
-        
+
         echo "✅ Deployment verification successful"
-        
+
     - name: Notify deployment status
       if: always()
       run: |
