@@ -61,7 +61,7 @@ jobs:
     name: Deploy to Server
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push' && false
     environment: production
 
     steps:
@@ -77,22 +77,22 @@ jobs:
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
           cd ${{ secrets.SERVER_PATH }} &&
-          
+
           # Pull latest changes
           git pull origin master &&
-          
+
           # Login to GitHub Container Registry
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin &&
-          
+
           # Pull latest image
           docker compose pull &&
-          
+
           # Stop and remove old containers
           docker compose down &&
-          
+
           # Start new containers
           docker compose up -d &&
-          
+
           # Clean up old images
           docker image prune -f
         '
