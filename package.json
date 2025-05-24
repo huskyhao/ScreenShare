@@ -1,14 +1,24 @@
 {
   "name": "screenshare",
-  "version": "0.6.5",
+  "version": "0.8.0",
   "description": "A lightweight screen sharing application for high-quality game streaming",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
     "server": "nodemon src/server.js",
+    "server:prod": "node src/server.js",
     "build": "electron-builder",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint src/ --ext .js",
+    "lint:fix": "eslint src/ --ext .js --fix",
+    "deploy": "chmod +x scripts/deploy.sh && ./scripts/deploy.sh",
+    "docker:build": "docker build -t screenshare-signaling .",
+    "docker:run": "docker run -p 3000:3000 screenshare-signaling",
+    "docker:compose": "docker compose up -d",
+    "docker:compose:down": "docker compose down",
+    "audit": "npm audit --audit-level moderate",
+    "update-deps": "npm update && npm audit fix"
   },
   "keywords": [
     "screen-sharing",
@@ -30,6 +40,8 @@
   },
   "devDependencies": {
     "electron-builder": "^24.9.1",
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "eslint": "^8.57.0",
+    "package-json-validator": "^0.6.3"
   }
 }

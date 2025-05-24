@@ -23,7 +23,19 @@ This project is currently in early development. Below is the roadmap:
 
 ## Version History
 
-### v0.7.3 (Current)
+### v0.8.0 (Current)
+- Implemented comprehensive CI/CD pipeline with GitHub Actions
+- Added Docker containerization support for consistent deployments
+- Created automated deployment scripts with rollback mechanisms
+- Integrated ESLint for code quality checks and security auditing
+- Added multi-platform Electron app building (Windows, macOS, Linux)
+- Implemented automated server deployment with PM2 process management
+- Created detailed CI/CD setup documentation and configuration guides
+- Added Docker Compose for easy service orchestration
+- Enhanced package.json with new deployment and maintenance scripts
+- Implemented secure configuration management with environment variables
+
+### v0.7.3
 - Fixed DNS resolution issues with STUN servers that caused connection failures
 - Added TURN server support for improved NAT traversal in long-distance connections
 - Enhanced WebRTC configuration with better ICE gathering and connection timeouts
@@ -425,6 +437,37 @@ Simply update `config/server.json` with your server's details:
 - Server IP addresses remain private when pushing to GitHub
 - Use the provided update scripts to safely pull new changes
 - Always backup your configuration before updating
+
+## CI/CD 和自动化部署
+
+本项目包含完整的 CI/CD 流水线，支持自动化构建、测试和部署。
+
+### 快速设置
+
+```bash
+# 运行 CI/CD 设置脚本
+chmod +x scripts/setup-cicd.sh
+./scripts/setup-cicd.sh
+```
+
+### 部署方式
+
+1. **自动部署** - 推送到 master 分支自动触发部署
+2. **手动部署** - 通过 GitHub Actions 手动触发
+3. **本地部署** - 使用 `npm run deploy` 命令
+4. **Docker 部署** - 使用 `npm run docker:compose` 命令
+
+### 主要功能
+
+- ✅ 自动化代码质量检查 (ESLint)
+- ✅ 安全审计和依赖检查
+- ✅ 多平台 Electron 应用构建
+- ✅ Docker 容器化部署
+- ✅ 自动化服务器部署
+- ✅ 部署验证和回滚机制
+- ✅ 配置管理和安全保护
+
+详细的 CI/CD 设置和使用说明请参考 [CI/CD 设置指南](docs/CI-CD-SETUP.md)。
 
 ## License
 

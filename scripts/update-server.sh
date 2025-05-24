@@ -8,7 +8,7 @@ set -e  # Exit on any error
 echo "🚀 Starting ScreenShare server update..."
 
 # Configuration
-PROJECT_DIR="/path/to/your/screenshare"  # Update this path
+PROJECT_DIR="$(pwd)"  # Use current directory
 SERVICE_NAME="screenshare-signaling"
 BACKUP_DIR="$PROJECT_DIR/backups/$(date +%Y%m%d_%H%M%S)"
 
