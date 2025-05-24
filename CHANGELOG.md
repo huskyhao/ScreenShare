@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2024-12-24
+
+### Fixed
+- CI/CD Docker build failures caused by missing package-lock.json file
+- Updated Dockerfile to use `--omit=dev` instead of deprecated `--only=production` flag
+- Resolved npm ci command compatibility issues with modern npm versions
+
+### Added
+- Generated package-lock.json file for consistent dependency resolution
+- Improved Docker build reliability and reproducibility
+
 ## [0.8.0] - 2024-12-19
 
 ### Added

@@ -23,7 +23,7 @@ This project is currently in early development. Below is the roadmap:
 
 ## Current Version
 
-**v0.8.0** - Latest release with comprehensive CI/CD pipeline and Docker support.
+**v0.8.0** - Latest release with comprehensive CI/CD pipeline and Docker support. Fixed CI/CD Docker build issues by adding package-lock.json and updating npm ci command.
 
 For detailed version history and changelog, see [CHANGELOG.md](CHANGELOG.md).
 
